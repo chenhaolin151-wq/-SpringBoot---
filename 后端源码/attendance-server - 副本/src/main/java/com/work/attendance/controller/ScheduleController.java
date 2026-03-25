@@ -1,5 +1,5 @@
 package com.work.attendance.controller;
-
+//排班管理
 import com.work.attendance.common.Result;
 import com.work.attendance.entity.Schedule;
 import com.work.attendance.entity.User;
@@ -31,5 +31,10 @@ public class ScheduleController {
     @GetMapping("/availableUsers")
     public Result<List<User>> getAvailable(@RequestParam(required = false) String workDate) {
         return scheduleService.getAvailableUsers(workDate);
+    }
+
+    @GetMapping("/mySchedule")
+    public Result<List<Schedule>> getMySchedule(@RequestParam Long userId) {
+        return scheduleService.getMySchedule(userId);
     }
 }

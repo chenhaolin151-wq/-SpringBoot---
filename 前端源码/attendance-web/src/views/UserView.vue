@@ -164,7 +164,7 @@
               </el-form-item>
 
               <el-form-item label="证明附件">
-                <el-upload ref="uploadRef" action="http://localhost:8080/api/file/upload/avatar/only" name="file"
+                <el-upload ref="uploadRef" action="http://localhost:8080/api/file/upload/only" name="file"
                   list-type="picture-card" :limit="1" :on-success="handleUploadSuccess" :on-remove="handleRemove">
                   <el-icon>
                     <Plus />
@@ -291,8 +291,7 @@ const fetchRecords = async () => {
   if (!userId.value) return
   try {
     const res = await request.get(`http://localhost:8080/api/attendance/myRecords?userId=${userId.value}`)
-    console.log("接口返回数据：", res.data) // 调试用，可以在控制台看数据
-    recordList.value = res.data
+    recordList.value = res
   } catch (err) {
     console.error("加载记录失败", err)
     ElMessage.error('无法获取考勤记录，请检查网络或后端服务')
@@ -397,16 +396,19 @@ const doPunchIn = async () => {
 }
 
 
+// 修改 handleAvatarSuccess 函数
 const handleAvatarSuccess = (res) => {
-  // res 就是后端 return 的那个图片地址
-  ElMessage.success('头像上传成功！')
-
-  // 更新本地缓存，这样刷新页面头像也不会丢
-  loginUser.avatar = res
-  localStorage.setItem('user', JSON.stringify(loginUser))
-
-  // 让页面上的头像立刻变过来
-  userInfo.value.avatar = res
+  // 注意：因为 el-upload 不走拦截器，所以 res 是 Result 对象
+  if (res.code === 200) {
+    const avatarUrl = res.data; // 这里的 data 才是真正的图片地址
+    ElMessage.success('头像上传成功！');
+    
+    loginUser.avatar = avatarUrl;
+    localStorage.setItem('user', JSON.stringify(loginUser));
+    userInfo.value.avatar = avatarUrl;
+  } else {
+    ElMessage.error(res.msg || '上传失败');
+  }
 }
 
 // 提交请假

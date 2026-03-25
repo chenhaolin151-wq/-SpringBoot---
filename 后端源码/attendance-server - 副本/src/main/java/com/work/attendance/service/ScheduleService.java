@@ -33,4 +33,7 @@ public interface ScheduleService {
      * 获取可排班的员工列表（过滤掉已离职和当天请假的员工）
      */
     Result<List<User>> getAvailableUsers(String workDate);
+
+    // 个人查询
+    Result<List<Schedule>> getMySchedule(Long userId);
 }

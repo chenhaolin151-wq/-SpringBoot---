@@ -30,7 +30,7 @@ const handleLogin = async () => {
     } else {
       ElMessage.success('登录成功！')
       // 关键：把用户信息存入本地浏览器，这样刷新页面也不会丢
-      localStorage.setItem('user', JSON.stringify(res.data))
+      localStorage.setItem('user', JSON.stringify(res))
       // 跳转到主页（这里可以控制 App.vue 切换状态）
       location.reload() 
     }

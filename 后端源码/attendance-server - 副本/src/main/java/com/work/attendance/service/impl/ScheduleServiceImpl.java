@@ -15,6 +15,7 @@ import com.work.attendance.service.ScheduleService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -103,5 +104,22 @@ public class ScheduleServiceImpl implements ScheduleService {
                     .collect(Collectors.toList());
         }
         return Result.success(activeUsers);
+    }
+
+    @Override
+    public Result<List<Schedule>> getMySchedule(Long userId) {
+        // 查询该用户未来 30 天的排班情况
+        List<Schedule> list = scheduleMapper.selectList(
+                new LambdaQueryWrapper<Schedule>()
+                        .eq(Schedule::getUserId, userId)
+                        .ge(Schedule::getWorkDate, LocalDate.now())
+                        .orderByAsc(Schedule::getWorkDate)
+                        .last("LIMIT 30")
+        );
+        // 关联班次信息
+        for (Schedule s : list) {
+            s.setWorkShift(workShiftMapper.selectById(s.getShiftId()));
+        }
+        return Result.success(list);
     }
 }

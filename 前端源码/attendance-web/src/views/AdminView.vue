@@ -534,7 +534,7 @@ const formatTime = (timeStr) => {
 
 // 获取所有请假列表
 const fetchAllLeaves = async () => {
-    const res = await request.get('http://localhost:8080/api/attendance/leave/all')
+    const res = await request.get('http://localhost:8080/api/leave/all')
     allLeaveList.value = res.data
 }
 
@@ -586,7 +586,7 @@ const initData = async (workDate = null) => {
 
         // 2. 获取员工
         // 🌟 核心：构建带日期参数的 URL
-        let url = 'http://localhost:8080/api/attendance/users'
+        let url = 'http://localhost:8080/api/schedule/availableUsers'
         if (workDate) {
             // 如果传了日期，URL 变成 .../users?workDate=2026-03-18
             // 后端接收到后，会自动过滤掉那天请假的人
@@ -676,7 +676,7 @@ const submitShiftSave = async () => {
 // 5. 删除班次（对接后端的 @DeleteMapping("/shift/delete/{id}")）
 const confirmDeleteShift = async (id) => {
     try {
-        await request.delete(`http://localhost:8080/api/attendance/shift/delete/${id}`)
+        await request.delete(`http://localhost:8080/api/shift/delete/${id}`)
         ElMessage.success('删除成功')
         initData() // 刷新表格
         fetchSchedules()
@@ -752,7 +752,7 @@ const confirmDelete = async (id) => {
 
     // 调用后端删除接口
     try {
-        const res = await request.delete(`http://localhost:8080/api/attendance/delete/${id}`)
+        const res = await request.delete(`http://localhost:8080/api/schedule/delete/${id}`)
         if (res.data === 'SUCCESS') {
             ElMessage.success('删除成功')
             // 🌟 重点：删除后需要重新获取日历数据并刷新当前弹窗列表
@@ -769,7 +769,7 @@ const confirmDelete = async (id) => {
 const clearDailySchedule = async () => {
     try {
         // selectedDay 就是你在 viewDailyDetail 时记录的那个日期字符串（如 "2026-03-17"）
-        const res = await request.post(`http://localhost:8080/api/attendance/deleteByDate?date=${selectedDay.value}`)
+        const res = await request.post(`http://localhost:8080/api/schedule/deleteByDate?date=${selectedDay.value}`)
 
         if (res.data === 'SUCCESS') {
             ElMessage.success(`${selectedDay.value} 的排班已全部清空`)
