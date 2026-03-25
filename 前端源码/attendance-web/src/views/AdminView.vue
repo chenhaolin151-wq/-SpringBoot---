@@ -457,7 +457,7 @@
 <script setup>
 
 import { ref, onMounted, computed, watch } from 'vue'
-import axios from 'axios'
+import request from '@/utils/request'
 import { ElMessage } from 'element-plus' // 必须补上这行！
 
 import { Location, Refresh, Check, DocumentChecked } from '@element-plus/icons-vue'
@@ -520,7 +520,7 @@ const officeIp = ref('')
 
 const fetchAll = async () => {
     try {
-        const res = await axios.get('http://localhost:8080/api/attendance/allRecords')
+        const res = await request.get('http://localhost:8080/api/attendance/allRecords')
         allRecords.value = res.data
     } catch (err) {
         console.error("管理员获取数据失败", err)
@@ -534,7 +534,7 @@ const formatTime = (timeStr) => {
 
 // 获取所有请假列表
 const fetchAllLeaves = async () => {
-    const res = await axios.get('http://localhost:8080/api/attendance/leave/all')
+    const res = await request.get('http://localhost:8080/api/attendance/leave/all')
     allLeaveList.value = res.data
 }
 
@@ -542,7 +542,7 @@ const fetchAllLeaves = async () => {
 const handleAudit = async (id, status) => {
     try {
         // 这里的参数要和后端 @RequestParam 对应
-        await axios.post(`http://localhost:8080/api/leave/audit?id=${id}&status=${status}`)
+        await request.post(`http://localhost:8080/api/leave/audit?id=${id}&status=${status}`)
         ElMessage.success('处理成功')
         fetchAllLeaves() // 刷新列表看最新状态
     } catch (err) {
@@ -567,12 +567,12 @@ const downloadExcel = () => {
 }
 
 const fetchAllOvertime = async () => {
-    const res = await axios.get('http://localhost:8080/api/attendance/overtime/all')
+    const res = await request.get('http://localhost:8080/api/overtime/all')
     allOvertimeList.value = res.data
 }
 
 const auditOT = async (row, status) => {
-    await axios.post(`http://localhost:8080/api/attendance/overtime/audit?id=${row.id}&status=${status}`)
+    await request.post(`http://localhost:8080/api/overtime/audit?id=${row.id}&status=${status}`)
     ElMessage.success('审批成功')
     fetchAllOvertime()
 }
@@ -581,7 +581,7 @@ const auditOT = async (row, status) => {
 const initData = async (workDate = null) => {
     try {
         // 1. 获取班次（维持原样）
-        const sRes = await axios.get('http://localhost:8080/api/shift/all')
+        const sRes = await request.get('http://localhost:8080/api/shift/all')
         shifts.value = sRes.data
 
         // 2. 获取员工
@@ -593,7 +593,7 @@ const initData = async (workDate = null) => {
             url += `?workDate=${workDate}`
         }
 
-        const uRes = await axios.get(url)
+        const uRes = await request.get(url)
         users.value = uRes.data // 更新 Vue 响应式变量，下拉框会自动变
 
         // 3. 获取现有排班（维持原样）
@@ -611,7 +611,7 @@ const fetchSchedules = async () => {
     const month = String(d.getMonth() + 1).padStart(2, '0') // getMonth() 是 0-11，所以要 +1
     const monthStr = `${year}-${month}` // 结果如 "2026-04"
 
-    const res = await axios.get(`http://localhost:8080/api/attendance/schedule/list?month=${monthStr}`)
+    const res = await request.get(`http://localhost:8080/api/schedule/list?month=${monthStr}`)
     scheduleList.value = res.data
 }
 
@@ -641,7 +641,7 @@ const openSchedule = (day) => {
 
 // 5. 保存排班
 const submitSchedule = async () => {
-    await axios.post('http://localhost:8080/api/schedule/save', scheduleForm.value)
+    await request.post('http://localhost:8080/api/schedule/save', scheduleForm.value)
     ElMessage.success('排班成功')
     dialogVisible.value = false
     fetchSchedules() // 刷新日历数据
@@ -663,7 +663,7 @@ const handleEditShift = (row) => {
 // 4. 提交保存（对接后端的 @PostMapping("/shift/save")）
 const submitShiftSave = async () => {
     try {
-        await axios.post('http://localhost:8080/api/attendance/shift/save', shiftForm.value)
+        await request.post('http://localhost:8080/api/attendance/shift/save', shiftForm.value)
         ElMessage.success('保存成功')
         shiftDialogVisible.value = false
         initData() // 重新拉取数据，刷新表格
@@ -676,7 +676,7 @@ const submitShiftSave = async () => {
 // 5. 删除班次（对接后端的 @DeleteMapping("/shift/delete/{id}")）
 const confirmDeleteShift = async (id) => {
     try {
-        await axios.delete(`http://localhost:8080/api/attendance/shift/delete/${id}`)
+        await request.delete(`http://localhost:8080/api/attendance/shift/delete/${id}`)
         ElMessage.success('删除成功')
         initData() // 刷新表格
         fetchSchedules()
@@ -713,7 +713,7 @@ const getDailySummary = (day) => {
 
 const handleApprove = async (id) => {
     try {
-        const res = await axios.post(`http://localhost:8080/api/correction/approve?applyId=${id}`)
+        const res = await request.post(`http://localhost:8080/api/correction/approve?applyId=${id}`)
         if (res.data === 'SUCCESS') {
             ElMessage.success('审批通过，考勤记录已自动修复')
             fetchCorrectionList() // 重新刷新列表
@@ -726,7 +726,7 @@ const handleApprove = async (id) => {
 // 获取申请列表
 const fetchCorrectionList = async () => {
     try {
-        const res = await axios.get('http://localhost:8080/api/correction/list')
+        const res = await request.get('http://localhost:8080/api/correction/list')
         correctionList.value = res.data
     } catch (error) {
         ElMessage.error('获取补签列表失败')
@@ -737,7 +737,7 @@ const fetchCorrectionList = async () => {
 const handleReject = async (id) => {
     try {
         // 调用刚才写的接口
-        const res = await axios.post(`http://localhost:8080/api/correction/reject?applyId=${id}`)
+        const res = await request.post(`http://localhost:8080/api/correction/reject?applyId=${id}`)
         if (res.data === 'SUCCESS') {
             ElMessage.warning('申请已驳回') // 驳回用 warning 橙色提醒更合适
             fetchCorrectionList() // 刷新列表，被驳回的申请状态会变红
@@ -752,7 +752,7 @@ const confirmDelete = async (id) => {
 
     // 调用后端删除接口
     try {
-        const res = await axios.delete(`http://localhost:8080/api/attendance/delete/${id}`)
+        const res = await request.delete(`http://localhost:8080/api/attendance/delete/${id}`)
         if (res.data === 'SUCCESS') {
             ElMessage.success('删除成功')
             // 🌟 重点：删除后需要重新获取日历数据并刷新当前弹窗列表
@@ -769,7 +769,7 @@ const confirmDelete = async (id) => {
 const clearDailySchedule = async () => {
     try {
         // selectedDay 就是你在 viewDailyDetail 时记录的那个日期字符串（如 "2026-03-17"）
-        const res = await axios.post(`http://localhost:8080/api/attendance/deleteByDate?date=${selectedDay.value}`)
+        const res = await request.post(`http://localhost:8080/api/attendance/deleteByDate?date=${selectedDay.value}`)
 
         if (res.data === 'SUCCESS') {
             ElMessage.success(`${selectedDay.value} 的排班已全部清空`)
@@ -827,7 +827,7 @@ const lateCount = computed(() => {
 
 const submitUser = async () => {
     try {
-        const res = await axios.post('http://localhost:8080/api/user/add', newUser.value)
+        const res = await request.post('http://localhost:8080/api/user/add', newUser.value)
         if (res.data === 'SUCCESS') {
             ElMessage.success('员工添加成功，默认密码 123456')
             addVisible.value = false
@@ -844,7 +844,7 @@ const submitUser = async () => {
 //获取所有员工信息
 const fetchUserList = async () => {
     try {
-        const res = await axios.get('http://localhost:8080/api/user/all')
+        const res = await request.get('http://localhost:8080/api/user/all')
         userList.value = res.data
     } catch (err) {
         ElMessage.error('获取员工列表失败')
@@ -856,7 +856,7 @@ const fetchUserList = async () => {
 const changeStatus = async (id, status) => {
     try {
         // 使用 URLSearchParams 传参，或者直接拼在 URL 后
-        await axios.put(`http://localhost:8080/api/user/updateStatus?id=${id}&status=${status}`)
+        await request.put(`http://localhost:8080/api/user/updateStatus?id=${id}&status=${status}`)
         ElMessage.success('操作成功')
         initData()
         fetchSchedules()
@@ -870,7 +870,7 @@ const changeStatus = async (id, status) => {
 const handleRoleChange = async (row) => {
     try {
         // 1. 调用后端更新接口
-        await axios.put(`http://localhost:8080/api/user/updateRole?id=${row.id}&role=${row.role}`)
+        await request.put(`http://localhost:8080/api/user/updateRole?id=${row.id}&role=${row.role}`)
 
         ElMessage.success(`${row.realName} 的权限已更新为 ${row.role}`)
 
@@ -932,7 +932,7 @@ const fetchHolidays = async () => {
         const month = String(d.getMonth() + 1).padStart(2, '0')
         const monthStr = `${year}-${month}`
 
-        const res = await axios.get(`http://localhost:8080/api/holiday/list?month=${monthStr}`)
+        const res = await request.get(`http://localhost:8080/api/holiday/list?month=${monthStr}`)
         holidayList.value = res.data
     } catch (err) {
         console.error("获取节假日失败:", err)
@@ -967,7 +967,7 @@ const saveHoliday = async () => {
         };
 
         // 1. 发送保存请求
-        await axios.post('http://localhost:8080/api/holiday/save', data);
+        await request.post('http://localhost:8080/api/holiday/save', data);
         ElMessage.success('设置成功');
 
         await clearDailySchedule();
@@ -990,7 +990,7 @@ const removeHoliday = async () => {
     // 2. 如果找到了 ID，说明数据库有记录，需要请求后端删除
     if (holidayInfo) {
         try {
-            await axios.delete(`http://localhost:8080/api/holiday/delete?id=${holidayInfo.id}`);
+            await request.delete(`http://localhost:8080/api/holiday/delete?id=${holidayInfo.id}`);
             ElMessage.success('已恢复为普通日期');
             await fetchHolidays(); // 刷新日历标红状态
         } catch (err) {
@@ -1010,7 +1010,7 @@ const removeHoliday = async () => {
 // 1. 获取管理员当前的真实 IP（调用我们刚写的后端接口）
 const fetchAdminIp = async () => {
     try {
-        const res = await axios.get('http://localhost:8080/api/attendance/currentIp')
+        const res = await request.get('http://localhost:8080/api/attendance/currentIp')
         adminCurrentIp.value = res.data
     } catch (err) {
         ElMessage.error('无法获取当前 IP')
@@ -1026,7 +1026,7 @@ const setAsOfficeIp = () => {
 const saveConfig = async () => {
     if (!officeIp.value) return ElMessage.warning('请填写有效的 IP 地址')
     try {
-        const res = await axios.post(`http://localhost:8080/api/attendance/updateConfig?ip=${officeIp.value}`)
+        const res = await request.post(`http://localhost:8080/api/attendance/updateConfig?ip=${officeIp.value}`)
         if (res.data === 'SUCCESS') {
             ElMessage.success('考勤地点配置已更新！')
         }

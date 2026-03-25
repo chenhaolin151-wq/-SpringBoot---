@@ -17,14 +17,14 @@
 
 <script setup>
 import { ref } from 'vue'
-import axios from 'axios'
+import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 
 const loginForm = ref({ username: '', password: '' })
 
 const handleLogin = async () => {
   try {
-    const res = await axios.post('http://localhost:8080/api/user/login', loginForm.value)
+    const res = await request.post('http://localhost:8080/api/user/login', loginForm.value)
     if (typeof res.data === 'string' && res.data.startsWith('FAILED')) {
       ElMessage.error(res.data)
     } else {

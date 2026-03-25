@@ -236,7 +236,7 @@
 
 <script setup>
 import { ref, onMounted, watch, computed, reactive } from 'vue'
-import axios from 'axios'
+import request from '@/utils/request'
 import { ElMessageBox,ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 
@@ -290,7 +290,7 @@ const formatTime = (timeStr) => {
 const fetchRecords = async () => {
   if (!userId.value) return
   try {
-    const res = await axios.get(`http://localhost:8080/api/attendance/myRecords?userId=${userId.value}`)
+    const res = await request.get(`http://localhost:8080/api/attendance/myRecords?userId=${userId.value}`)
     console.log("接口返回数据：", res.data) // 调试用，可以在控制台看数据
     recordList.value = res.data
   } catch (err) {
@@ -307,7 +307,7 @@ const saveUserInfo = async () => {
     try {
 
         // 🌟 核心：发送 post 请求到后端接口
-        const res = await axios.post('http://localhost:8080/api/user/update', userInfo.value)
+        const res = await request.post('http://localhost:8080/api/user/update', userInfo.value)
         
         if (res.data === 'SUCCESS') {
             ElMessage.success('个人信息更新成功！')
@@ -338,7 +338,7 @@ const doPunchOut = async () => {
   // ------------------
 
   try {
-    const res = await axios.post(`http://localhost:8080/api/attendance/punchOut?userId=${userId.value}`)
+    const res = await request.post(`http://localhost:8080/api/attendance/punchOut?userId=${userId.value}`)
     
     // 🌟 同样拦截 IP 限制
     if (typeof res.data === 'string' && res.data.startsWith('IP_LIMIT:')) {
@@ -364,7 +364,7 @@ const doPunchIn = async () => {
   
   try {
     // 1. 发送打卡请求
-    const res = await axios.post(`http://localhost:8080/api/attendance/punchIn?userId=${userId.value}`)
+    const res = await request.post(`http://localhost:8080/api/attendance/punchIn?userId=${userId.value}`)
     
     // 🌟 2. 核心拦截：判断是否触碰了 IP 限制
     // 后端返回的格式是 "IP_LIMIT:123.x.x.x"
@@ -427,7 +427,7 @@ const submitLeave = async () => {
 
   try {
     // 这里使用我们刚在后端写的接口
-    const res = await axios.post('http://localhost:8080/api/leave/apply', data)
+    const res = await request.post('http://localhost:8080/api/leave/apply', data)
     ElMessage.success(res.data)
 
     // 提交成功后清空表单
@@ -451,7 +451,7 @@ const submitLeave = async () => {
 // 获取我的请假历史（记得在 onMounted 里也调用一下它）
 const fetchMyLeaves = async () => {
   // 注意：这个接口你后端也要顺手写一个 getByUserId 的版本哦！
-  const res = await axios.get(`http://localhost:8080/api/leave/my?userId=${userId.value}`)
+  const res = await request.get(`http://localhost:8080/api/leave/my?userId=${userId.value}`)
   myLeaveList.value = res.data
 }
 
@@ -485,7 +485,7 @@ const submitOvertime = async () => {
       userId: userId.value,
       status: 0 // 默认为待审批
     }
-    await axios.post('http://localhost:8080/api/overtime/apply', data)
+    await request.post('http://localhost:8080/api/overtime/apply', data)
     ElMessage.success('加班申请提交成功')
     otForm.value = { overtimeDate: '', duration: 1.0, reason: '' } // 清空表单
     fetchMyOvertime() // 刷新列表
@@ -497,7 +497,7 @@ const submitOvertime = async () => {
 // 3. 获取我的加班记录
 const fetchMyOvertime = async () => {
   try {
-    const res = await axios.get(`http://localhost:8080/api/overtime/my?userId=${userId.value}`)
+    const res = await request.get(`http://localhost:8080/api/overtime/my?userId=${userId.value}`)
     myOvertimeList.value = res.data
   } catch (err) {
     console.error('获取加班记录失败')
@@ -513,7 +513,7 @@ const submitCorrection = async () => {
 
   try {
     // 这里的路径根据你的后端 Controller 确定
-    const res = await axios.post('http://localhost:8080/api/correction/apply', correctionForm)
+    const res = await request.post('http://localhost:8080/api/correction/apply', correctionForm)
     if (res.data === 'SUCCESS') {
       ElMessage.success('申请提交成功，请等待管理员审批')
       correctionVisible.value = false
@@ -532,7 +532,7 @@ const submitCorrection = async () => {
 
 const fetchMySchedule = async () => {
   try {
-    const res = await axios.get(`http://localhost:8080/api/schedule/mySchedule?userId=${userId.value}`)
+    const res = await request.get(`http://localhost:8080/api/schedule/mySchedule?userId=${userId.value}`)
     myScheduleList.value = res.data
   } catch (error) {
     ElMessage.error('无法获取排班信息')
