@@ -542,7 +542,7 @@ const fetchAllLeaves = async () => {
 const handleAudit = async (id, status) => {
     try {
         // 这里的参数要和后端 @RequestParam 对应
-        await axios.post(`http://localhost:8080/api/attendance/leave/audit?id=${id}&status=${status}`)
+        await axios.post(`http://localhost:8080/api/leave/audit?id=${id}&status=${status}`)
         ElMessage.success('处理成功')
         fetchAllLeaves() // 刷新列表看最新状态
     } catch (err) {
@@ -554,7 +554,7 @@ const downloadExcel = () => {
     loading.value = true
     try {
         // 直接跳转到后端下载接口
-        window.location.href = 'http://localhost:8080/api/attendance/export'
+        window.location.href = 'http://localhost:8080/api/file/export'
         // 🌟 重点：不要立即关掉 loading，延迟 1.5 秒
         // 给浏览器留出响应时间，也给用户一个“正在生成”的心理反馈
         setTimeout(() => {
@@ -581,7 +581,7 @@ const auditOT = async (row, status) => {
 const initData = async (workDate = null) => {
     try {
         // 1. 获取班次（维持原样）
-        const sRes = await axios.get('http://localhost:8080/api/attendance/shifts')
+        const sRes = await axios.get('http://localhost:8080/api/shift/all')
         shifts.value = sRes.data
 
         // 2. 获取员工
@@ -641,7 +641,7 @@ const openSchedule = (day) => {
 
 // 5. 保存排班
 const submitSchedule = async () => {
-    await axios.post('http://localhost:8080/api/attendance/schedule/save', scheduleForm.value)
+    await axios.post('http://localhost:8080/api/schedule/save', scheduleForm.value)
     ElMessage.success('排班成功')
     dialogVisible.value = false
     fetchSchedules() // 刷新日历数据

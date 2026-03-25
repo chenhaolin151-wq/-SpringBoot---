@@ -123,7 +123,7 @@
       <el-tab-pane label="个人中心">
         <el-form label-width="80px" style="padding: 20px;">
           <el-form-item label="我的头像">
-            <el-upload class="avatar-uploader" action="http://localhost:8080/api/attendance/upload"
+            <el-upload class="avatar-uploader" action="http://localhost:8080/api/file/upload/avatar"
               :data="{ userId: userId }" :show-file-list="false" :on-success="handleAvatarSuccess">
               <img v-if="loginUser.avatar" :src="loginUser.avatar" class="avatar"
                 style="width: 100px; height: 100px; border-radius: 50%;" />
@@ -164,7 +164,7 @@
               </el-form-item>
 
               <el-form-item label="证明附件">
-                <el-upload ref="uploadRef" action="http://localhost:8080/api/attendance/upload/only" name="file"
+                <el-upload ref="uploadRef" action="http://localhost:8080/api/file/upload/avatar/only" name="file"
                   list-type="picture-card" :limit="1" :on-success="handleUploadSuccess" :on-remove="handleRemove">
                   <el-icon>
                     <Plus />
@@ -427,7 +427,7 @@ const submitLeave = async () => {
 
   try {
     // 这里使用我们刚在后端写的接口
-    const res = await axios.post('http://localhost:8080/api/attendance/leave/apply', data)
+    const res = await axios.post('http://localhost:8080/api/leave/apply', data)
     ElMessage.success(res.data)
 
     // 提交成功后清空表单
@@ -451,7 +451,7 @@ const submitLeave = async () => {
 // 获取我的请假历史（记得在 onMounted 里也调用一下它）
 const fetchMyLeaves = async () => {
   // 注意：这个接口你后端也要顺手写一个 getByUserId 的版本哦！
-  const res = await axios.get(`http://localhost:8080/api/attendance/leave/my?userId=${userId.value}`)
+  const res = await axios.get(`http://localhost:8080/api/leave/my?userId=${userId.value}`)
   myLeaveList.value = res.data
 }
 
@@ -485,7 +485,7 @@ const submitOvertime = async () => {
       userId: userId.value,
       status: 0 // 默认为待审批
     }
-    await axios.post('http://localhost:8080/api/attendance/overtime/apply', data)
+    await axios.post('http://localhost:8080/api/overtime/apply', data)
     ElMessage.success('加班申请提交成功')
     otForm.value = { overtimeDate: '', duration: 1.0, reason: '' } // 清空表单
     fetchMyOvertime() // 刷新列表
@@ -497,7 +497,7 @@ const submitOvertime = async () => {
 // 3. 获取我的加班记录
 const fetchMyOvertime = async () => {
   try {
-    const res = await axios.get(`http://localhost:8080/api/attendance/overtime/my?userId=${userId.value}`)
+    const res = await axios.get(`http://localhost:8080/api/overtime/my?userId=${userId.value}`)
     myOvertimeList.value = res.data
   } catch (err) {
     console.error('获取加班记录失败')
