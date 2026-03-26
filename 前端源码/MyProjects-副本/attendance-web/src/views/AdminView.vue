@@ -831,16 +831,20 @@ const lateCount = computed(() => {
 const submitUser = async () => {
     try {
         const res = await request.post('/api/user/add', newUser.value)
-        if (res === 'SUCCESS') {
+        // 🌟 判定条件与后端返回的 data 保持一致
+        if (res === 'SUCCESS') { 
             ElMessage.success('员工添加成功，默认密码 123456')
             addVisible.value = false
-            // 别忘了重新获取一次员工列表，让表格刷新
-            fetchUserList()
+            
+            // 🌟 使用 await 确保列表刷新请求已发出并更新了响应式变量
+            await fetchUserList() 
+            
             // 重置表单
             newUser.value = { realName: '', phone: '', username: '' }
         }
     } catch (err) {
-        ElMessage.error('添加失败，请检查用户名是否重复')
+        // 拦截器已经弹过错误了，这里可以处理具体的 loading 状态关闭
+        console.error("添加员工失败", err)
     }
 }
 

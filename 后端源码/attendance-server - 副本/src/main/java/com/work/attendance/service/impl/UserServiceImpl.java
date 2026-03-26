@@ -45,7 +45,7 @@ public class UserServiceImpl implements UserService {
         user.setPassword("123456"); // 设置默认密码
         user.setStatus(0);          // 设置默认在职状态
         int rows = userMapper.insert(user);
-        return rows > 0 ? Result.success("添加成功") : Result.error("添加失败");
+        return rows > 0 ? Result.success("SUCCESS") : Result.error("添加失败");
     }
 
     @Override
