@@ -25,7 +25,7 @@ public class FileServiceImpl implements FileService {
 
     // 统一定义文件存储根目录（毕设建议 D 盘，生产环境建议配置在 yml 中）
     private static final String BASE_PATH = "D:/uploads/";
-    private static final String SERVER_URL = "http://localhost:8080/files/";
+    private static final String SERVER_URL = "http://localhost:8081/files/";
 
     @Override
     public Result<String> uploadFile(MultipartFile file) {

@@ -395,13 +395,13 @@ const doPunchIn = async () => {
 // 修改 handleAvatarSuccess 函数
 const handleAvatarSuccess = (res) => {
   if (res.code === 200) {
-    const baseUrl = 'http://localhost:8081';
-    // 补全路径：确保存入缓存的是完整 URL
+    const baseUrl = 'http://localhost:8081'; // 🌟 定义后端基地址
+    // 🌟 核心：补全路径：确保存入缓存的是完整 URL
     const avatarUrl = res.data.startsWith('http') ? res.data : (baseUrl + res.data);
-
+    
     ElMessage.success('头像上传成功！');
-    loginUser.avatar = avatarUrl;
-    localStorage.setItem('user', JSON.stringify(loginUser));
+    loginUser.avatar = avatarUrl; // 🌟 存入完整路径
+    localStorage.setItem('user', JSON.stringify(loginUser)); // 🌟 同步更新本地存储
     userInfo.value.avatar = avatarUrl;
   } else {
     ElMessage.error(res.msg || '上传失败');
