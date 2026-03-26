@@ -25,8 +25,8 @@ const loginForm = ref({ username: '', password: '' })
 const handleLogin = async () => {
   try {
     const res = await request.post('http://localhost:8080/api/user/login', loginForm.value)
-    if (typeof res.data === 'string' && res.data.startsWith('FAILED')) {
-      ElMessage.error(res.data)
+    if (typeof res === 'string' && res.startsWith('FAILED')) {
+      ElMessage.error(res)
     } else {
       ElMessage.success('登录成功！')
       // 关键：把用户信息存入本地浏览器，这样刷新页面也不会丢

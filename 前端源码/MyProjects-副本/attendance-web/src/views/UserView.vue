@@ -335,8 +335,8 @@ const doPunchOut = async () => {
     const res = await request.post(`/api/attendance/punchOut?userId=${userId.value}`)
 
     // 🌟 同样拦截 IP 限制
-    if (typeof res.data === 'string' && res.data.startsWith('IP_LIMIT:')) {
-      const currentIp = res.data.split(':')[1];
+    if (typeof res === 'string' && res.startsWith('IP_LIMIT:')) {
+      const currentIp = res.split(':')[1];
       ElMessageBox.alert(
         `下班打卡失败！您当前不在公司网络环境（IP: ${currentIp}）。<br/>请返回办公室连接 WiFi 后再打卡。`,
         '位置异常',
@@ -345,7 +345,7 @@ const doPunchOut = async () => {
       return;
     }
 
-    ElMessage.success(res.data)
+    ElMessage.success(res)
     await fetchRecords()
   } catch (err) {
     ElMessage.error('下班打卡失败')
@@ -362,8 +362,8 @@ const doPunchIn = async () => {
 
     // 🌟 2. 核心拦截：判断是否触碰了 IP 限制
     // 后端返回的格式是 "IP_LIMIT:123.x.x.x"
-    if (typeof res.data === 'string' && res.data.startsWith('IP_LIMIT:')) {
-      const currentIp = res.data.split(':')[1]; // 拿到冒号后面的真实 IP
+    if (typeof res === 'string' && res.startsWith('IP_LIMIT:')) {
+      const currentIp = res.split(':')[1]; // 拿到冒号后面的真实 IP
 
       // 弹出更醒目的警告框（比普通 Message 更适合毕设演示）
       ElMessageBox.alert(
@@ -381,7 +381,7 @@ const doPunchIn = async () => {
 
     // 🌟 3. 原有成功逻辑
     // 如果没有被 IP 拦截，说明打卡成功，执行你原来的操作
-    ElMessage.success(res.data)
+    ElMessage.success(res)
     await fetchRecords()
 
   } catch (err) {
@@ -425,7 +425,7 @@ const submitLeave = async () => {
   try {
     // 这里使用我们刚在后端写的接口
     const res = await request.post('/api/leave/apply', data)
-    ElMessage.success(res.data)
+    ElMessage.success(res)
 
     // 提交成功后清空表单
     leaveForm.value.reason = ''
@@ -449,7 +449,7 @@ const submitLeave = async () => {
 const fetchMyLeaves = async () => {
   // 注意：这个接口你后端也要顺手写一个 getByUserId 的版本哦！
   const res = await request.get(`/api/leave/my?userId=${userId.value}`)
-  myLeaveList.value = res.data
+  myLeaveList.value = res
 }
 
 const hasClockedInToday = computed(() => {
@@ -495,7 +495,7 @@ const submitOvertime = async () => {
 const fetchMyOvertime = async () => {
   try {
     const res = await request.get(`/api/overtime/my?userId=${userId.value}`)
-    myOvertimeList.value = res.data
+    myOvertimeList.value = res
   } catch (err) {
     console.error('获取加班记录失败')
   }
@@ -519,7 +519,7 @@ const submitCorrection = async () => {
     correctionForm.type = ''
     correctionForm.reason = ''
 
-    if (res.data === 'EXISTED') {
+    if (res === 'EXISTED') {
       ElMessage.warning('您已提交过该日期的补签申请，请勿重复提交')
     }
   } catch (error) {
@@ -530,7 +530,7 @@ const submitCorrection = async () => {
 const fetchMySchedule = async () => {
   try {
     const res = await request.get(`/api/schedule/mySchedule?userId=${userId.value}`)
-    myScheduleList.value = res.data
+    myScheduleList.value = res
   } catch (error) {
     ElMessage.error('无法获取排班信息')
   }

@@ -2,11 +2,9 @@ package com.work.attendance.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.work.attendance.common.Result;
-import com.work.attendance.entity.AttendanceRecord;
-import com.work.attendance.entity.Schedule;
-import com.work.attendance.entity.User;
-import com.work.attendance.entity.WorkShift;
+import com.work.attendance.entity.*;
 import com.work.attendance.mapper.*;
 import com.work.attendance.service.AttendanceService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +29,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     private WorkShiftMapper workShiftMapper;
     @Autowired
     private UserMapper userMapper;
+
 
     //上班打卡
     @Override
@@ -220,5 +219,24 @@ public class AttendanceServiceImpl implements AttendanceService {
             resultList.add(record);
         }
         return Result.success(resultList);
+    }
+
+    @Override
+    public Result<String> getCurrentIp(String ip) {
+        // 逻辑极其简单，但为了格式统一，我们依然在 Service 中处理
+        return Result.success(ip);
+    }
+
+    @Override
+    public Result<String> updateConfig(String ip) {
+        AttendanceConfig config = new AttendanceConfig();
+        config.setConfigKey("OFFICE_IP");
+        config.setConfigValue(ip);
+
+        UpdateWrapper<AttendanceConfig> uw = new UpdateWrapper<>();
+        uw.eq("config_key", "OFFICE_IP");
+
+        int rows = attendanceConfigMapper.update(config, uw);
+        return rows > 0 ? Result.success("更新成功") : Result.error("配置更新失败");
     }
 }

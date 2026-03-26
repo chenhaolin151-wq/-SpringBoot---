@@ -27,4 +27,10 @@ public interface AttendanceService {
      * 管理员获取所有人的考勤记录
      */
     Result<List<AttendanceRecord>> getAllRecords();
+
+    // 获取当前请求的 IP
+    Result<String> getCurrentIp(String ip);
+
+    // 更新办公室 IP 配置
+    Result<String> updateConfig(String ip);
 }
