@@ -15,6 +15,9 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class AttendanceServiceImpl implements AttendanceService {
@@ -30,15 +33,27 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Autowired
     private UserMapper userMapper;
 
+    /**
+     * 校验当前 IP 是否为合法的办公 IP
+     * @param currentIp 用户打卡时的实时 IP
+     * @return 如果校验失败返回 Result 对象，校验成功返回 null
+     */
+    private Result<String> validateOfficeIp(String currentIp) {
+        String officeIp = attendanceConfigMapper.getValueByKey("OFFICE_IP");
+        if (officeIp != null && !officeIp.equals(currentIp)) {
+            // 这里的 501 是你约定的特殊状态码，方便前端拦截器或页面逻辑做特殊提示
+            return Result.error(501, "IP_LIMIT:" + currentIp);
+        }
+        return null; // 返回 null 表示校验通过
+    }
 
     //上班打卡
     @Override
     public Result<String> punchIn(Long userId, String currentIp) {
         // 1. 校验 IP
-        String officeIp = attendanceConfigMapper.getValueByKey("OFFICE_IP");
-        if (officeIp != null && !officeIp.equals(currentIp)) {
-            return Result.error(501, "IP_LIMIT:" + currentIp); // 这里的 501 方便前端特殊处理
-        }
+        // 1. 调用提取后的校验逻辑
+        Result<String> ipCheck = validateOfficeIp(currentIp);
+        if (ipCheck != null) return ipCheck;
 
         // 2. 准备时间数据
         LocalDate todayDate = LocalDate.now();
@@ -84,11 +99,9 @@ public class AttendanceServiceImpl implements AttendanceService {
     // 在 AttendanceServiceImpl 类中添加以下方法实现下班打卡
     @Override
     public Result<String> punchOut(Long userId, String currentIp) {
-        // 1. IP 检查
-        String officeIp = attendanceConfigMapper.getValueByKey("OFFICE_IP");
-        if (officeIp != null && !officeIp.equals(currentIp)) {
-            return Result.error(501, "IP_LIMIT:" + currentIp);
-        }
+        // 1. 调用提取后的校验逻辑
+        Result<String> ipCheck = validateOfficeIp(currentIp);
+        if (ipCheck != null) return ipCheck;
 
         LocalDate today = LocalDate.now();
         LocalDateTime nowDateTime = LocalDateTime.now();
@@ -140,7 +153,7 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Override
     public Result<List<AttendanceRecord>> getMyRecords(Long userId) {
-        // 1. 获取该员工最近15天的排班作为“底表”
+        // 1. 获取排班底表（维持原样）
         List<Schedule> schedules = scheduleMapper.selectList(
                 new LambdaQueryWrapper<Schedule>()
                         .eq(Schedule::getUserId, userId)
@@ -149,14 +162,27 @@ public class AttendanceServiceImpl implements AttendanceService {
                         .last("LIMIT 15")
         );
 
-        List<AttendanceRecord> resultList = new ArrayList<>();
+        if (schedules.isEmpty()) return Result.success(new ArrayList<>());
+
+        // 2. 【优化】提前查出用户信息，避免在循环里重复查
         User user = userMapper.selectById(userId);
         if (user == null) {
             user = new User();
             user.setRealName("已离职员工");
         }
 
-        // 2. 遍历排班，匹配真实打卡记录
+        // 3. 【优化核心】批量获取所有涉及的班次 ID
+        List<Long> shiftIds = schedules.stream()
+                .map(Schedule::getShiftId)
+                .distinct()
+                .toList();
+
+        // 一次性查出这些班次，转成 Map <ID, WorkShift实体>
+        List<WorkShift> shifts = workShiftMapper.selectBatchIds(shiftIds);
+        Map<Long, WorkShift> shiftMap = shifts.stream()
+                .collect(Collectors.toMap(WorkShift::getId, s -> s));
+
+        List<AttendanceRecord> resultList = new ArrayList<>();
         for (Schedule schedule : schedules) {
             AttendanceRecord record = attendanceMapper.selectOne(
                     new LambdaQueryWrapper<AttendanceRecord>()
@@ -164,7 +190,6 @@ public class AttendanceServiceImpl implements AttendanceService {
                             .eq(AttendanceRecord::getPunchDate, schedule.getWorkDate())
             );
 
-            // 3. 如果没有打卡记录，手动创建一个“虚拟记录”代表缺勤 (状态4)
             if (record == null) {
                 record = new AttendanceRecord();
                 record.setUserId(userId);
@@ -172,9 +197,9 @@ public class AttendanceServiceImpl implements AttendanceService {
                 record.setStatus(4);
             }
 
-            // 4. 关联用户和班次要求
+            // 4. 【优化】从内存/变量中直接设置，不再查库
             record.setUser(user);
-            record.setWorkShift(workShiftMapper.selectById(schedule.getShiftId()));
+            record.setWorkShift(shiftMap.get(schedule.getShiftId())); // 直接从 Map 拿
             resultList.add(record);
         }
         return Result.success(resultList);
@@ -182,42 +207,66 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Override
     public Result<List<AttendanceRecord>> getAllRecords() {
-        // 1. 获取所有历史排班记录
+        // 1. 获取所有历史排班记录（底表）
         List<Schedule> allSchedules = scheduleMapper.selectList(
                 new LambdaQueryWrapper<Schedule>()
                         .le(Schedule::getWorkDate, LocalDate.now())
                         .orderByDesc(Schedule::getWorkDate)
         );
 
+        if (allSchedules.isEmpty()) {
+            return Result.success(new ArrayList<>());
+        }
+
+        // 2. 提取所有涉及的 userId 和 shiftId，用于批量查询
+        Set<Long> userIds = allSchedules.stream().map(Schedule::getUserId).collect(Collectors.toSet());
+        Set<Long> shiftIds = allSchedules.stream().map(Schedule::getShiftId).collect(Collectors.toSet());
+
+        // 3. 批量查询用户并转为 Map <userId, User>
+        List<User> users = userMapper.selectBatchIds(userIds);
+        Map<Long, User> userMap = users.stream().collect(Collectors.toMap(User::getId, u -> u));
+
+        // 4. 批量查询班次并转为 Map <shiftId, WorkShift>
+        List<WorkShift> shifts = workShiftMapper.selectBatchIds(shiftIds);
+        Map<Long, WorkShift> shiftMap = shifts.stream().collect(Collectors.toMap(WorkShift::getId, s -> s));
+
+        // 5. 【进阶优化】批量查询所有考勤记录，并转为复合 Key Map <"userId_date", AttendanceRecord>
+        // 这样连考勤记录的查询也从 N 变成了 1
+        List<AttendanceRecord> existingRecords = attendanceMapper.selectList(null);
+        Map<String, AttendanceRecord> recordMap = existingRecords.stream()
+                .collect(Collectors.toMap(
+                        r -> r.getUserId() + "_" + r.getPunchDate(),
+                        r -> r,
+                        (existing, replacement) -> existing // 避免 Key 重复导致报错
+                ));
+
         List<AttendanceRecord> resultList = new ArrayList<>();
+        User resignedUserDefault = new User();
+        resignedUserDefault.setRealName("已离职员工");
+
+        // 6. 开始内存装配
         for (Schedule schedule : allSchedules) {
-            // 2. 匹配打卡记录
-            AttendanceRecord record = attendanceMapper.selectOne(
-                    new LambdaQueryWrapper<AttendanceRecord>()
-                            .eq(AttendanceRecord::getUserId, schedule.getUserId())
-                            .eq(AttendanceRecord::getPunchDate, schedule.getWorkDate())
-            );
+            // 从 Map 中获取考勤记录，匹配不到则视为缺勤
+            String key = schedule.getUserId() + "_" + schedule.getWorkDate();
+            AttendanceRecord record = recordMap.get(key);
 
             if (record == null) {
                 record = new AttendanceRecord();
                 record.setUserId(schedule.getUserId());
                 record.setPunchDate(LocalDate.parse(schedule.getWorkDate()));
-                record.setStatus(4);
+                record.setStatus(4); // 缺勤状态
             }
 
-            // 3. 关联用户信息（处理离职人员逻辑）
-            User user = userMapper.selectById(schedule.getUserId());
-            if (user != null) {
-                record.setUser(user);
-            } else {
-                User virtualUser = new User();
-                virtualUser.setRealName("已离职员工");
-                record.setUser(virtualUser);
-            }
+            // 关联用户信息（从 Map 获取）
+            User user = userMap.get(schedule.getUserId());
+            record.setUser(user != null ? user : resignedUserDefault);
 
-            record.setWorkShift(workShiftMapper.selectById(schedule.getShiftId()));
+            // 关联班次信息（从 Map 获取）
+            record.setWorkShift(shiftMap.get(schedule.getShiftId()));
+
             resultList.add(record);
         }
+
         return Result.success(resultList);
     }
 

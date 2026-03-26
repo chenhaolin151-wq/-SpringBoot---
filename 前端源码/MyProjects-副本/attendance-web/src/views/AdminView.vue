@@ -555,6 +555,9 @@ const downloadExcel = () => {
     try {
         // 直接跳转到后端下载接口
         window.location.href = '/api/file/export'
+        // 🌟 核心：手动指定后端基地址，确保端口与 request.js 一致
+        const BASE_URL = 'http://localhost:8081'
+        window.location.href = `${BASE_URL}/api/file/export`
         // 🌟 重点：不要立即关掉 loading，延迟 1.5 秒
         // 给浏览器留出响应时间，也给用户一个“正在生成”的心理反馈
         setTimeout(() => {
@@ -713,7 +716,7 @@ const getDailySummary = (day) => {
 
 const handleApprove = async (id) => {
     try {
-        const res = await request.post(`/api/correction/approve?applyId=${id}`)
+        const res = await request.post(`/api/correction/approve?id=${id}`)
         if (res === 'SUCCESS') {
             ElMessage.success('审批通过，考勤记录已自动修复')
             fetchCorrectionList() // 重新刷新列表
@@ -737,7 +740,7 @@ const fetchCorrectionList = async () => {
 const handleReject = async (id) => {
     try {
         // 调用刚才写的接口
-        const res = await request.post(`/api/correction/reject?applyId=${id}`)
+        const res = await request.post(`/api/correction/reject?id=${id}`)
         if (res === 'SUCCESS') {
             ElMessage.warning('申请已驳回') // 驳回用 warning 橙色提醒更合适
             fetchCorrectionList() // 刷新列表，被驳回的申请状态会变红

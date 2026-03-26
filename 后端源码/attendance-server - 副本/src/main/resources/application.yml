@@ -1,6 +1,11 @@
 server:
   port: 8081
 
+# 自定义文件上传路径配置
+file-upload:
+  # Windows 开发环境下写这个
+  path: D:/uploads/
+
 spring:
   datasource:
     # ??? localhost ?????????3306 ? MySQL ??????

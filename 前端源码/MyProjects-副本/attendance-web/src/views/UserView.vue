@@ -459,12 +459,12 @@ const hasClockedInToday = computed(() => {
 
 // 2. 上传成功的回调
 const handleUploadSuccess = (res) => {
-  console.log("上传成功，后端返回的全量数据：", res) // 重点看这里！
-  // 此时你在控制台就能看到 res 的结构了
-  if (res) {
-    // 根据你之前头像上传的经验，看看地址是在 res 还是 res.data 
-    leaveForm.value.attachment = typeof res === 'string' ? res : (res.data || res.url)
-    ElMessage.success('附件上传成功')
+  // 🌟 统一逻辑：手动解析 Result 对象
+  if (res && res.code === 200) {
+    leaveForm.value.attachment = res.data; 
+    ElMessage.success('附件上传成功');
+  } else {
+    ElMessage.error(res.msg || '附件上传失败');
   }
 }
 
