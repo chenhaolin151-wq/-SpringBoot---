@@ -123,10 +123,11 @@
       <el-tab-pane label="个人中心">
         <el-form label-width="80px" style="padding: 20px;">
           <el-form-item label="我的头像">
-            <el-upload class="avatar-uploader" action="/api/file/upload/avatar"
-              :data="{ userId: userId }" :show-file-list="false" :on-success="handleAvatarSuccess">
-              <img v-if="loginUser.avatar" :src="loginUser.avatar" class="avatar"
-                style="width: 100px; height: 100px; border-radius: 50%;" />
+            <el-upload class="avatar-uploader" action="/api/file/upload/avatar" :data="{ userId: userId }"
+              :show-file-list="false" :on-success="handleAvatarSuccess">
+              <img v-if="loginUser.avatar"
+                :src="loginUser.avatar.startsWith('http') ? loginUser.avatar : 'http://localhost:8081' + loginUser.avatar"
+                class="avatar" style="width: 100px; height: 100px; border-radius: 50%;" />
               <el-icon v-else class="avatar-uploader-icon"
                 style="font-size: 28px; border: 1px dashed #d9d9d9; padding: 30px; border-radius: 50%;">
                 <Plus />
@@ -164,8 +165,8 @@
               </el-form-item>
 
               <el-form-item label="证明附件">
-                <el-upload ref="uploadRef" action="/api/file/upload/only" name="file"
-                  list-type="picture-card" :limit="1" :on-success="handleUploadSuccess" :on-remove="handleRemove">
+                <el-upload ref="uploadRef" action="/api/file/upload/only" name="file" list-type="picture-card"
+                  :limit="1" :on-success="handleUploadSuccess" :on-remove="handleRemove">
                   <el-icon>
                     <Plus />
                   </el-icon>
@@ -348,7 +349,7 @@ const doPunchOut = async () => {
     ElMessage.success(res)
     await fetchRecords()
   } catch (err) {
-   console.error('打卡请求异常', err)
+    console.error('打卡请求异常', err)
   }
 }
 
@@ -393,11 +394,12 @@ const doPunchIn = async () => {
 
 // 修改 handleAvatarSuccess 函数
 const handleAvatarSuccess = (res) => {
-  // 注意：因为 el-upload 不走拦截器，所以 res 是 Result 对象
   if (res.code === 200) {
-    const avatarUrl = res.data; // 这里的 data 才是真正的图片地址
+    const baseUrl = 'http://localhost:8081';
+    // 补全路径：确保存入缓存的是完整 URL
+    const avatarUrl = res.data.startsWith('http') ? res.data : (baseUrl + res.data);
+    
     ElMessage.success('头像上传成功！');
-
     loginUser.avatar = avatarUrl;
     localStorage.setItem('user', JSON.stringify(loginUser));
     userInfo.value.avatar = avatarUrl;
@@ -461,7 +463,7 @@ const hasClockedInToday = computed(() => {
 const handleUploadSuccess = (res) => {
   // 🌟 统一逻辑：手动解析 Result 对象
   if (res && res.code === 200) {
-    leaveForm.value.attachment = res.data; 
+    leaveForm.value.attachment = res.data;
     ElMessage.success('附件上传成功');
   } else {
     ElMessage.error(res.msg || '附件上传失败');

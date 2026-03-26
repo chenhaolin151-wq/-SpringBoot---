@@ -14,10 +14,8 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // 确保路径以 / 结尾，并且拼接 file: 前缀
-        String locations = "file:" + (uploadPath.endsWith("/") ? uploadPath : uploadPath + "/");
-
+        // 动态注入路径，确保无论部署在 D 盘还是 Linux 都能找到
         registry.addResourceHandler("/files/**")
-                .addResourceLocations(locations);
+                .addResourceLocations("file:" + uploadPath);
     }
 }
