@@ -585,7 +585,7 @@ const initData = async (workDate = null) => {
     try {
         // 1. 获取班次（维持原样）
         const sRes = await request.get('/api/shift/all')
-        shifts.value = sRes.data
+        shifts.value = sRes
 
         // 2. 获取员工
         // 🌟 核心：构建带日期参数的 URL
@@ -597,7 +597,7 @@ const initData = async (workDate = null) => {
         }
 
         const uRes = await request.get(url)
-        users.value = uRes.data // 更新 Vue 响应式变量，下拉框会自动变
+        users.value = uRes // 更新 Vue 响应式变量，下拉框会自动变
 
         // 3. 获取现有排班（维持原样）
         fetchSchedules()
@@ -666,7 +666,7 @@ const handleEditShift = (row) => {
 // 4. 提交保存（对接后端的 @PostMapping("/shift/save")）
 const submitShiftSave = async () => {
     try {
-        await request.post('/api/attendance/shift/save', shiftForm.value)
+        await request.post(`/api/shift/save?role=${currentUser.value.role}`, shiftForm.value)
         ElMessage.success('保存成功')
         shiftDialogVisible.value = false
         initData() // 重新拉取数据，刷新表格
@@ -740,7 +740,7 @@ const fetchCorrectionList = async () => {
 const handleReject = async (id) => {
     try {
         // 调用刚才写的接口
-        const res = await request.post(`/api/correction/reject?id=${id}`)
+        const res = await request.post(`/api/correction/reject?applyId=${id}`)
         if (res === 'SUCCESS') {
             ElMessage.warning('申请已驳回') // 驳回用 warning 橙色提醒更合适
             fetchCorrectionList() // 刷新列表，被驳回的申请状态会变红
