@@ -55,7 +55,7 @@
                 </div>
               </template>
 
-            
+
             </el-table-column>
             <el-table-column label="状态" width="150">
               <template #default="scope">
@@ -123,7 +123,7 @@
       <el-tab-pane label="个人中心">
         <el-form label-width="80px" style="padding: 20px;">
           <el-form-item label="我的头像">
-            <el-upload class="avatar-uploader" action="http://localhost:8080/api/file/upload/avatar"
+            <el-upload class="avatar-uploader" action="/api/file/upload/avatar"
               :data="{ userId: userId }" :show-file-list="false" :on-success="handleAvatarSuccess">
               <img v-if="loginUser.avatar" :src="loginUser.avatar" class="avatar"
                 style="width: 100px; height: 100px; border-radius: 50%;" />
@@ -164,7 +164,7 @@
               </el-form-item>
 
               <el-form-item label="证明附件">
-                <el-upload ref="uploadRef" action="http://localhost:8080/api/file/upload/only" name="file"
+                <el-upload ref="uploadRef" action="/api/file/upload/only" name="file"
                   list-type="picture-card" :limit="1" :on-success="handleUploadSuccess" :on-remove="handleRemove">
                   <el-icon>
                     <Plus />
@@ -237,7 +237,7 @@
 <script setup>
 import { ref, onMounted, watch, computed, reactive } from 'vue'
 import request from '@/utils/request'
-import { ElMessageBox,ElMessage } from 'element-plus'
+import { ElMessageBox, ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 
 // --- 1. 数据定义区 ---
@@ -290,7 +290,7 @@ const formatTime = (timeStr) => {
 const fetchRecords = async () => {
   if (!userId.value) return
   try {
-    const res = await request.get(`http://localhost:8080/api/attendance/myRecords?userId=${userId.value}`)
+    const res = await request.get(`/api/attendance/myRecords?userId=${userId.value}`)
     recordList.value = res
   } catch (err) {
     console.error("加载记录失败", err)
@@ -302,23 +302,18 @@ const fetchRecords = async () => {
 const saveUserInfo = async () => {
 
   userInfo.value.id = userId.value;
- 
-    try {
 
-        // 🌟 核心：发送 post 请求到后端接口
-        const res = await request.post('http://localhost:8080/api/user/update', userInfo.value)
-        
-        if (res.data === 'SUCCESS') {
-            ElMessage.success('个人信息更新成功！')
-            // 可选：重新拉取最新信息以确保同步
-            // await fetchUserInfo() 
-        } else {
-            ElMessage.error('更新失败，请稍后再试')
-        }
-    } catch (err) {
-        console.error(err)
-        ElMessage.error('网络错误，保存失败')
-    }
+  try {
+
+    // 🌟 核心：发送 post 请求到后端接口
+    const res = await request.post('/api/user/update', userInfo.value)
+    ElMessage.success('个人信息更新成功！')
+    // 可选：重新拉取最新信息以确保同步
+    // await fetchUserInfo() 
+  } catch (err) {
+    console.error(err)
+    ElMessage.error('网络错误，保存失败')
+  }
 }
 
 // 下班打卡
@@ -337,8 +332,8 @@ const doPunchOut = async () => {
   // ------------------
 
   try {
-    const res = await request.post(`http://localhost:8080/api/attendance/punchOut?userId=${userId.value}`)
-    
+    const res = await request.post(`/api/attendance/punchOut?userId=${userId.value}`)
+
     // 🌟 同样拦截 IP 限制
     if (typeof res.data === 'string' && res.data.startsWith('IP_LIMIT:')) {
       const currentIp = res.data.split(':')[1];
@@ -349,7 +344,7 @@ const doPunchOut = async () => {
       );
       return;
     }
-    
+
     ElMessage.success(res.data)
     await fetchRecords()
   } catch (err) {
@@ -360,16 +355,16 @@ const doPunchOut = async () => {
 // 上班打卡
 const doPunchIn = async () => {
   if (!userId.value) return ElMessage.warning('ID不能为空')
-  
+
   try {
     // 1. 发送打卡请求
-    const res = await request.post(`http://localhost:8080/api/attendance/punchIn?userId=${userId.value}`)
-    
+    const res = await request.post(`/api/attendance/punchIn?userId=${userId.value}`)
+
     // 🌟 2. 核心拦截：判断是否触碰了 IP 限制
     // 后端返回的格式是 "IP_LIMIT:123.x.x.x"
     if (typeof res.data === 'string' && res.data.startsWith('IP_LIMIT:')) {
       const currentIp = res.data.split(':')[1]; // 拿到冒号后面的真实 IP
-      
+
       // 弹出更醒目的警告框（比普通 Message 更适合毕设演示）
       ElMessageBox.alert(
         `打卡失败！系统检测到您当前处于非办公网络环境。 <br/><b>您的当前 IP：</b> <span style="color: #f56c6c">${currentIp}</span><br/><br/>请连接公司授权的 WiFi 后再试。`,
@@ -387,7 +382,7 @@ const doPunchIn = async () => {
     // 🌟 3. 原有成功逻辑
     // 如果没有被 IP 拦截，说明打卡成功，执行你原来的操作
     ElMessage.success(res.data)
-    await fetchRecords() 
+    await fetchRecords()
 
   } catch (err) {
     // 如果是网络报错（如 404, 500）走这里
@@ -402,7 +397,7 @@ const handleAvatarSuccess = (res) => {
   if (res.code === 200) {
     const avatarUrl = res.data; // 这里的 data 才是真正的图片地址
     ElMessage.success('头像上传成功！');
-    
+
     loginUser.avatar = avatarUrl;
     localStorage.setItem('user', JSON.stringify(loginUser));
     userInfo.value.avatar = avatarUrl;
@@ -429,7 +424,7 @@ const submitLeave = async () => {
 
   try {
     // 这里使用我们刚在后端写的接口
-    const res = await request.post('http://localhost:8080/api/leave/apply', data)
+    const res = await request.post('/api/leave/apply', data)
     ElMessage.success(res.data)
 
     // 提交成功后清空表单
@@ -453,7 +448,7 @@ const submitLeave = async () => {
 // 获取我的请假历史（记得在 onMounted 里也调用一下它）
 const fetchMyLeaves = async () => {
   // 注意：这个接口你后端也要顺手写一个 getByUserId 的版本哦！
-  const res = await request.get(`http://localhost:8080/api/leave/my?userId=${userId.value}`)
+  const res = await request.get(`/api/leave/my?userId=${userId.value}`)
   myLeaveList.value = res.data
 }
 
@@ -487,7 +482,7 @@ const submitOvertime = async () => {
       userId: userId.value,
       status: 0 // 默认为待审批
     }
-    await request.post('http://localhost:8080/api/overtime/apply', data)
+    await request.post('/api/overtime/apply', data)
     ElMessage.success('加班申请提交成功')
     otForm.value = { overtimeDate: '', duration: 1.0, reason: '' } // 清空表单
     fetchMyOvertime() // 刷新列表
@@ -499,7 +494,7 @@ const submitOvertime = async () => {
 // 3. 获取我的加班记录
 const fetchMyOvertime = async () => {
   try {
-    const res = await request.get(`http://localhost:8080/api/overtime/my?userId=${userId.value}`)
+    const res = await request.get(`/api/overtime/my?userId=${userId.value}`)
     myOvertimeList.value = res.data
   } catch (err) {
     console.error('获取加班记录失败')
@@ -515,17 +510,17 @@ const submitCorrection = async () => {
 
   try {
     // 这里的路径根据你的后端 Controller 确定
-    const res = await request.post('http://localhost:8080/api/correction/apply', correctionForm)
-    if (res.data === 'SUCCESS') {
-      ElMessage.success('申请提交成功，请等待管理员审批')
-      correctionVisible.value = false
-      // 重置表单
-      correctionForm.applyDate = ''
-      correctionForm.type = ''
-      correctionForm.reason = ''
-    }
-    else if (res.data === 'EXISTED') {
-            ElMessage.warning('您已提交过该日期的补签申请，请勿重复提交')
+    const res = await request.post('/api/correction/apply', correctionForm)
+
+    ElMessage.success('申请提交成功，请等待管理员审批')
+    correctionVisible.value = false
+    // 重置表单
+    correctionForm.applyDate = ''
+    correctionForm.type = ''
+    correctionForm.reason = ''
+
+    if (res.data === 'EXISTED') {
+      ElMessage.warning('您已提交过该日期的补签申请，请勿重复提交')
     }
   } catch (error) {
     ElMessage.error('提交失败，请检查网络')
@@ -534,7 +529,7 @@ const submitCorrection = async () => {
 
 const fetchMySchedule = async () => {
   try {
-    const res = await request.get(`http://localhost:8080/api/schedule/mySchedule?userId=${userId.value}`)
+    const res = await request.get(`/api/schedule/mySchedule?userId=${userId.value}`)
     myScheduleList.value = res.data
   } catch (error) {
     ElMessage.error('无法获取排班信息')
