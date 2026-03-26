@@ -348,7 +348,7 @@ const doPunchOut = async () => {
     ElMessage.success(res)
     await fetchRecords()
   } catch (err) {
-    ElMessage.error('下班打卡失败')
+   console.error('打卡请求异常', err)
   }
 }
 
@@ -386,7 +386,7 @@ const doPunchIn = async () => {
 
   } catch (err) {
     // 如果是网络报错（如 404, 500）走这里
-    ElMessage.error('上班打卡失败，请检查网络连接')
+    console.error('打卡请求异常', err)
   }
 }
 
