@@ -123,8 +123,8 @@
       <el-tab-pane label="个人中心">
         <el-form label-width="80px" style="padding: 20px;">
           <el-form-item label="我的头像">
-            <el-upload class="avatar-uploader" action="/api/file/upload/avatar" :data="{ userId: userId }"
-              :show-file-list="false" :on-success="handleAvatarSuccess">
+            <el-upload class="avatar-uploader" action="http://localhost:8081/api/file/upload/avatar"
+              :data="{ userId: userId }" :show-file-list="false" :on-success="handleAvatarSuccess">
               <img v-if="loginUser.avatar"
                 :src="loginUser.avatar.startsWith('http') ? loginUser.avatar : 'http://localhost:8081' + loginUser.avatar"
                 class="avatar" style="width: 100px; height: 100px; border-radius: 50%;" />
@@ -165,8 +165,8 @@
               </el-form-item>
 
               <el-form-item label="证明附件">
-                <el-upload ref="uploadRef" action="/api/file/upload/only" name="file" list-type="picture-card"
-                  :limit="1" :on-success="handleUploadSuccess" :on-remove="handleRemove">
+                <el-upload ref="uploadRef" action="http://localhost:8081/api/file/upload/only" name="file"
+                  list-type="picture-card" :limit="1" :on-success="handleUploadSuccess" :on-remove="handleRemove">
                   <el-icon>
                     <Plus />
                   </el-icon>
@@ -398,7 +398,7 @@ const handleAvatarSuccess = (res) => {
     const baseUrl = 'http://localhost:8081';
     // 补全路径：确保存入缓存的是完整 URL
     const avatarUrl = res.data.startsWith('http') ? res.data : (baseUrl + res.data);
-    
+
     ElMessage.success('头像上传成功！');
     loginUser.avatar = avatarUrl;
     localStorage.setItem('user', JSON.stringify(loginUser));
