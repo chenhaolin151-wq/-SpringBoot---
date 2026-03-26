@@ -44,3 +44,38 @@ yarn-error.log*
 # 编辑器相关 (如果之前没加的话)
 .vscode/
 .idea/
+
+# === 后端 (Spring Boot) ===
+target/
+*.class
+.mvn/
+mvnw
+mvnw.cmd
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+bin/
+
+# === 前端 (Vite/Vue) ===
+node_modules/
+.pnpm-store/
+dist/
+dist-ssr/
+*.local
+.eslintcache
+.stylelintcache
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# === 操作系统与日志 ===
+.DS_Store
+Thumbs.db
+*.log
+tmp/
+temp/
