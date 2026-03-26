@@ -460,7 +460,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus' // 必须补上这行！
 
-import { Location, Refresh, Check, DocumentChecked } from '@element-plus/icons-vue'
+import { Location } from '@element-plus/icons-vue'
 
 const allRecords = ref([])
 
@@ -517,6 +517,17 @@ const holidayList = ref([]); // 存放从后端查到的节假日
 
 const adminCurrentIp = ref('加载中...')
 const officeIp = ref('')
+
+
+const formatTime = (timeStr) => {
+    if (!timeStr) return '--:--'
+    return timeStr.split('T')[1].split('.')[0]
+}
+
+
+
+
+
 
 // --------------------------------考勤记录查询---------------------------------------------
 
@@ -585,7 +596,14 @@ const lateCount = computed(() => {
     ).length
 })
 
-
+//实现“缺勤行背景变红”的效果
+const tableRowClassName = ({ row }) => {
+    // 如果状态是 4 (缺勤)，返回自定义的类名
+    if (row.status === 4) {
+        return 'absent-row'
+    }
+    return ''
+}
 
 
 
@@ -611,6 +629,15 @@ const handleAudit = async (id, status) => {
     }
 }
 
+// 管理员一次性加载所有员工的请假单，用于在“请假审批”页进行处理。
+const fetchAllLeaves = async () => {
+    const res = await request.get('/api/leave/all')
+    allLeaveList.value = res
+}
+
+
+
+
 
 
 
@@ -622,6 +649,12 @@ const handleAudit = async (id, status) => {
 
 
 
+
+// 管理员用来获取全公司所有员工的加班申请列表，以便进行统一审批
+const fetchAllOvertime = async () => {
+    const res = await request.get('/api/overtime/all')
+    allOvertimeList.value = res
+}
 
 // 处理加班申请的“通过/拒绝”动作
 const auditOT = async (row, status) => {
@@ -705,6 +738,12 @@ const handleGoToSchedule = (day) => {
     openSchedule(day);           // 再打开“排班分配”
 };
 
+// 在点击日历格子的“去排班”时，记录目标日期并弹出分配班次的窗口
+const openSchedule = (day) => {
+    scheduleForm.value.workDate = day
+    dialogVisible.value = true
+}
+
 // 保存当日排班
 const submitSchedule = async () => {
     await request.post('/api/schedule/save', scheduleForm.value)
@@ -756,7 +795,33 @@ const clearDailySchedule = async () => {
     }
 }
 
-// 点击日历格子时触发，显示该天具体有哪些员工值班。
+// 初始化所有班次选项和（按日期过滤后的）可选员工名单
+const initData = async (workDate = null) => {
+    try {
+        // 1. 获取班次（维持原样）
+        const sRes = await request.get('/api/shift/all')
+        shifts.value = sRes
+
+        // 2. 获取员工
+        // 🌟 核心：构建带日期参数的 URL
+        let url = '/api/schedule/availableUsers'
+        if (workDate) {
+            // 如果传了日期，URL 变成 .../users?workDate=2026-03-18
+            // 后端接收到后，会自动过滤掉那天请假的人
+            url += `?workDate=${workDate}`
+        }
+
+        const uRes = await request.get(url)
+        users.value = uRes // 更新 Vue 响应式变量，下拉框会自动变
+
+        // 3. 获取现有排班（维持原样）
+        fetchSchedules()
+    } catch (err) {
+        console.error('初始化数据失败', err)
+    }
+}
+
+// 点击日历格子时触发，显示该天具体员工值班信息。
 const viewDailyDetail = async (day) => {
 
     selectedDay.value = day
@@ -778,7 +843,7 @@ const viewDailyDetail = async (day) => {
     detailVisible.value = true
 }
 
-// 🌟 检查某一天是否为节假日（供日历格子渲染使用）
+// 检查某一天是否为节假日，在日历上渲染“休”字标记
 const isHolidayDate = (day) => {
     // 1. 安全检查：如果节假日名单还没加载出来，直接返回 false
     if (!holidayList.value || holidayList.value.length === 0) {
@@ -797,7 +862,7 @@ const isHolidayDate = (day) => {
     });
 };
 
-// 节假日配置，设置某天为“休”并清空当日排班
+// 节假日配置，设置某天为节假日并清空当日排班
 const saveHoliday = async () => {
     try {
         const data = {
@@ -848,7 +913,20 @@ const removeHoliday = async () => {
     holidayName.value = '';
 };
 
+// 从数据库获取指定月份的节假日安排
+const fetchHolidays = async () => {
+    try {
+        const d = currentDate.value
+        const year = d.getFullYear()
+        const month = String(d.getMonth() + 1).padStart(2, '0')
+        const monthStr = `${year}-${month}`
 
+        const res = await request.get(`/api/holiday/list?month=${monthStr}`)
+        holidayList.value = res
+    } catch (err) {
+        console.error("获取节假日失败:", err)
+    }
+}
 
 
 
@@ -864,7 +942,7 @@ const removeHoliday = async () => {
 
 
 
-// 班次的增删改，提交保存
+// 班次的提交保存
 const submitShiftSave = async () => {
     try {
         await request.post(`/api/shift/save?role=${currentUser.value.role}`, shiftForm.value)
@@ -889,9 +967,17 @@ const confirmDeleteShift = async (id) => {
     }
 }
 
+// 重置班次表单并打开新增班次的对话框
+const handleAddShift = () => {
+    shiftForm.value = { id: null, shiftName: '', startTime: '', endTime: '' }
+    shiftDialogVisible.value = true
+}
 
-
-
+// 供管理员进行修改、编辑选中班次的现有信息（名称、时间）
+const handleEditShift = (row) => {
+    shiftForm.value = { ...row } // 将当前行的数据拷贝到表单里
+    shiftDialogVisible.value = true
+}
 
 
 
@@ -1063,120 +1149,12 @@ const fetchAdminIp = async () => {
     }
 }
 
-
-
-
-
-
-const formatTime = (timeStr) => {
-    if (!timeStr) return '--:--'
-    return timeStr.split('T')[1].split('.')[0]
-}
-
-const fetchAllLeaves = async () => {
-    const res = await request.get('/api/leave/all')
-    allLeaveList.value = res
-}
-
-const fetchAllOvertime = async () => {
-    const res = await request.get('/api/overtime/all')
-    allOvertimeList.value = res
-}
-
-const initData = async (workDate = null) => {
-    try {
-        // 1. 获取班次（维持原样）
-        const sRes = await request.get('/api/shift/all')
-        shifts.value = sRes
-
-        // 2. 获取员工
-        // 🌟 核心：构建带日期参数的 URL
-        let url = '/api/schedule/availableUsers'
-        if (workDate) {
-            // 如果传了日期，URL 变成 .../users?workDate=2026-03-18
-            // 后端接收到后，会自动过滤掉那天请假的人
-            url += `?workDate=${workDate}`
-        }
-
-        const uRes = await request.get(url)
-        users.value = uRes // 更新 Vue 响应式变量，下拉框会自动变
-
-        // 3. 获取现有排班（维持原样）
-        fetchSchedules()
-    } catch (err) {
-        console.error('初始化数据失败', err)
-    }
-}
-
-
-
-
-
-
-// 4. 打开分配弹窗
-const openSchedule = (day) => {
-    scheduleForm.value.workDate = day
-    dialogVisible.value = true
-}
-
-
-
-// 2. 点击“新增”按钮
-const handleAddShift = () => {
-    shiftForm.value = { id: null, shiftName: '', startTime: '', endTime: '' }
-    shiftDialogVisible.value = true
-}
-
-// 3. 点击“编辑”按钮（回显数据）
-const handleEditShift = (row) => {
-    shiftForm.value = { ...row } // 将当前行的数据拷贝到表单里
-    shiftDialogVisible.value = true
-}
-
-
-
-
-
-//缺勤报红
-const tableRowClassName = ({ row }) => {
-    // 如果状态是 4 (缺勤)，返回自定义的类名
-    if (row.status === 4) {
-        return 'absent-row'
-    }
-    return ''
-}
-
-
-
-
-
-
-
-// 获取节假日列表
-const fetchHolidays = async () => {
-    try {
-        const d = currentDate.value
-        const year = d.getFullYear()
-        const month = String(d.getMonth() + 1).padStart(2, '0')
-        const monthStr = `${year}-${month}`
-
-        const res = await request.get(`/api/holiday/list?month=${monthStr}`)
-        holidayList.value = res
-    } catch (err) {
-        console.error("获取节假日失败:", err)
-    }
-}
-
-
-
-
-
-// 2. 快捷填入
+// 将系统检测到的管理员当前网络 IP 快捷填入配置框，方便将其设为办公地点 IP
 const setAsOfficeIp = () => {
     officeIp.value = adminCurrentIp.value
 }
 
-// 3. 保存到数据库
+// 将管理员修改后的“授权打卡 IP”正式提交并保存到后端数据库配置中
 const saveConfig = async () => {
     if (!officeIp.value) return ElMessage.warning('请填写有效的 IP 地址')
     try {
@@ -1188,6 +1166,10 @@ const saveConfig = async () => {
         ElMessage.error('保存失败')
     }
 }
+
+
+
+
 
 
 

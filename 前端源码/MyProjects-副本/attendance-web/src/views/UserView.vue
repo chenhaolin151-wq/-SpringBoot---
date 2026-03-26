@@ -287,6 +287,9 @@ const formatTime = (timeStr) => {
 }
 
 
+
+
+
 // --------------------------------考勤打卡---------------------------------------------
 
 
@@ -404,7 +407,11 @@ const submitCorrection = async () => {
   }
 }
 
-
+// 通过检查今日记录来判定用户是否已打过卡，从而控制打卡按钮的状态
+const hasClockedInToday = computed(() => {
+  const today = new Date().toISOString().split('T')[0];
+  return recordList.value.some(r => r.punchDate === today && r.clockIn);
+})
 
 
 
@@ -412,6 +419,21 @@ const submitCorrection = async () => {
 
 
 // --------------------------------我的排班---------------------------------------------
+
+
+// 获取分配给当前员工的排班表，用于在“我的排班”标签页展示工作日期和班次
+const fetchMySchedule = async () => {
+  try {
+    const res = await request.get(`/api/schedule/mySchedule?userId=${userId.value}`)
+    myScheduleList.value = res
+  } catch (error) {
+    ElMessage.error('无法获取排班信息')
+  }
+}
+
+
+
+
 // --------------------------------个人中心---------------------------------------------
 
 
@@ -434,7 +456,23 @@ const handleAvatarSuccess = (res) => {
   }
 }
 
+// 将用户修改后的手机号、备注等个人资料发送给后端进行保存更新
+const saveUserInfo = async () => {
 
+  userInfo.value.id = userId.value;
+
+  try {
+
+    // 🌟 核心：发送 post 请求到后端接口
+    const res = await request.post('/api/user/update', userInfo.value)
+    ElMessage.success('个人信息更新成功！')
+    // 可选：重新拉取最新信息以确保同步
+    // await fetchUserInfo() 
+  } catch (err) {
+    console.error(err)
+    ElMessage.error('网络错误，保存失败')
+  }
+}
 
 
 
@@ -496,9 +534,17 @@ const handleUploadSuccess = (res) => {
   }
 }
 
+// 根据当前登录用户的 ID，从数据库拉取该员工所有的请假申请历史。
+const fetchMyLeaves = async () => {
+  // 注意：这个接口你后端也要顺手写一个 getByUserId 的版本哦！
+  const res = await request.get(`/api/leave/my?userId=${userId.value}`)
+  myLeaveList.value = res
+}
 
-
-
+// 当用户在请假申请中撤回已上传的图片附件时，负责清空表单中的图片路径
+const handleRemove = () => {
+  leaveForm.value.attachment = ''
+}
 
 
 
@@ -530,65 +576,7 @@ const submitOvertime = async () => {
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-// 保存个人信息（后续可以对接后端接口）
-const saveUserInfo = async () => {
-
-  userInfo.value.id = userId.value;
-
-  try {
-
-    // 🌟 核心：发送 post 请求到后端接口
-    const res = await request.post('/api/user/update', userInfo.value)
-    ElMessage.success('个人信息更新成功！')
-    // 可选：重新拉取最新信息以确保同步
-    // await fetchUserInfo() 
-  } catch (err) {
-    console.error(err)
-    ElMessage.error('网络错误，保存失败')
-  }
-}
-
-
-
-
-
-
-
-
-
-// 获取我的请假历史（记得在 onMounted 里也调用一下它）
-const fetchMyLeaves = async () => {
-  // 注意：这个接口你后端也要顺手写一个 getByUserId 的版本哦！
-  const res = await request.get(`/api/leave/my?userId=${userId.value}`)
-  myLeaveList.value = res
-}
-
-const hasClockedInToday = computed(() => {
-  const today = new Date().toISOString().split('T')[0];
-  return recordList.value.some(r => r.punchDate === today && r.clockIn);
-})
-
-
-// 3. 移除图片
-const handleRemove = () => {
-  leaveForm.value.attachment = ''
-}
-
-
-
-// 3. 获取我的加班记录
+// 向后端请求并加载当前登录员工的所有加班申请记录。
 const fetchMyOvertime = async () => {
   try {
     const res = await request.get(`/api/overtime/my?userId=${userId.value}`)
@@ -599,14 +587,9 @@ const fetchMyOvertime = async () => {
 }
 
 
-const fetchMySchedule = async () => {
-  try {
-    const res = await request.get(`/api/schedule/mySchedule?userId=${userId.value}`)
-    myScheduleList.value = res
-  } catch (error) {
-    ElMessage.error('无法获取排班信息')
-  }
-}
+
+
+
 
 // --- 4. 生命周期与监听 ---
 // 只要 userId 变了，就查记录
