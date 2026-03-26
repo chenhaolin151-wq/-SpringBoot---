@@ -518,6 +518,17 @@ const holidayList = ref([]); // 存放从后端查到的节假日
 const adminCurrentIp = ref('加载中...')
 const officeIp = ref('')
 
+// --------------------------------考勤记录查询---------------------------------------------
+
+
+
+
+
+
+
+
+
+// 获取所有人的考勤记录并展示在第一个标签页
 const fetchAll = async () => {
     try {
         const res = await request.get('/api/attendance/allRecords')
@@ -527,29 +538,7 @@ const fetchAll = async () => {
     }
 }
 
-const formatTime = (timeStr) => {
-    if (!timeStr) return '--:--'
-    return timeStr.split('T')[1].split('.')[0]
-}
-
-// 获取所有请假列表
-const fetchAllLeaves = async () => {
-    const res = await request.get('/api/leave/all')
-    allLeaveList.value = res
-}
-
-// 处理审批动作
-const handleAudit = async (id, status) => {
-    try {
-        // 这里的参数要和后端 @RequestParam 对应
-        await request.post(`/api/leave/audit?id=${id}&status=${status}`)
-        ElMessage.success('处理成功')
-        fetchAllLeaves() // 刷新列表看最新状态
-    } catch (err) {
-        ElMessage.error('处理失败')
-    }
-}
-
+// 使用 window.location.href 触发后端流下载报表
 const downloadExcel = () => {
     loading.value = true
     try {
@@ -569,127 +558,98 @@ const downloadExcel = () => {
     }
 }
 
-const fetchAllOvertime = async () => {
-    const res = await request.get('/api/overtime/all')
-    allOvertimeList.value = res
+//计算应打卡人数
+const totalExpected = computed(() => {
+    // 逻辑：找出打卡日期为今天的排班人数（后端重构后，allRecords里每一行就是一个人）
+    const today = new Date().toISOString().split('T')[0]
+    return allRecords.value.filter(r => r.punchDate === today).length
+})
+
+//计算缺勤人数
+const absentCount = computed(() => {
+    const today = new Date().toISOString().split('T')[0]
+    return allRecords.value.filter(r => r.punchDate === today && r.status === 4).length
+})
+
+//计算早退人数
+const earlyCount = computed(() => {
+    const today = new Date().toISOString().split('T')[0]
+    return allRecords.value.filter(r => r.punchDate === today && (r.status === 2 || r.status === 3)).length
+})
+
+// 计算今日迟到人数
+const lateCount = computed(() => {
+    const today = new Date().toISOString().split('T')[0]
+    return allRecords.value.filter(r =>
+        r.punchDate === today && (r.status === 1 || r.status === 3)
+    ).length
+})
+
+
+
+
+
+
+
+
+// --------------------------------请假审批---------------------------------------------
+
+
+
+
+
+
+// 处理请假的“通过/拒绝”动作
+const handleAudit = async (id, status) => {
+    try {
+        // 这里的参数要和后端 @RequestParam 对应
+        await request.post(`/api/leave/audit?id=${id}&status=${status}`)
+        ElMessage.success('处理成功')
+        fetchAllLeaves() // 刷新列表看最新状态
+    } catch (err) {
+        ElMessage.error('处理失败')
+    }
 }
 
+
+
+
+
+// --------------------------------加班审批---------------------------------------------
+
+
+
+
+
+
+
+// 处理加班申请的“通过/拒绝”动作
 const auditOT = async (row, status) => {
     await request.post(`/api/overtime/audit?id=${row.id}&status=${status}`)
     ElMessage.success('审批成功')
     fetchAllOvertime()
 }
 
-// 2. 初始化：获取班次和员工列表
-const initData = async (workDate = null) => {
-    try {
-        // 1. 获取班次（维持原样）
-        const sRes = await request.get('/api/shift/all')
-        shifts.value = sRes
-
-        // 2. 获取员工
-        // 🌟 核心：构建带日期参数的 URL
-        let url = '/api/schedule/availableUsers'
-        if (workDate) {
-            // 如果传了日期，URL 变成 .../users?workDate=2026-03-18
-            // 后端接收到后，会自动过滤掉那天请假的人
-            url += `?workDate=${workDate}`
-        }
-
-        const uRes = await request.get(url)
-        users.value = uRes // 更新 Vue 响应式变量，下拉框会自动变
-
-        // 3. 获取现有排班（维持原样）
-        fetchSchedules()
-    } catch (err) {
-        console.error('初始化数据失败', err)
-    }
-}
-
-// 3. 获取排班数据（传入当前月份）
-const fetchSchedules = async () => {
-    // 🌟 核心改进：使用本地时间获取年和月，避免时区偏差
-    const d = currentDate.value
-    const year = d.getFullYear()
-    const month = String(d.getMonth() + 1).padStart(2, '0') // getMonth() 是 0-11，所以要 +1
-    const monthStr = `${year}-${month}` // 结果如 "2026-04"
-
-    const res = await request.get(`/api/schedule/list?month=${monthStr}`)
-    scheduleList.value = res
-}
-
-// 监听日历绑定的日期变量
-watch(currentDate, async () => {
-    console.log('月份已切换，当前日期为:', currentDate.value);
-
-    // 🌟 1. 获取排班数据 (旧功能)
-    await fetchSchedules();
-
-    // 🌟 2. 获取节假日数据 (新功能预留)
-    // 如果你还没定义 fetchHolidays，可以先注释掉下面这一行
-    await fetchHolidays();
-
-}, { immediate: true }); // 🌟 关键：确保页面一打开就执行一次
-// 排班弹窗
-const handleGoToSchedule = (day) => {
-    detailVisible.value = false; // 先关掉“详情”
-    openSchedule(day);           // 再打开“排班分配”
-};
-
-// 4. 打开分配弹窗
-const openSchedule = (day) => {
-    scheduleForm.value.workDate = day
-    dialogVisible.value = true
-}
-
-// 5. 保存排班
-const submitSchedule = async () => {
-    await request.post('/api/schedule/save', scheduleForm.value)
-    ElMessage.success('排班成功')
-    dialogVisible.value = false
-    fetchSchedules() // 刷新日历数据
-    initData()
-}
-
-// 2. 点击“新增”按钮
-const handleAddShift = () => {
-    shiftForm.value = { id: null, shiftName: '', startTime: '', endTime: '' }
-    shiftDialogVisible.value = true
-}
-
-// 3. 点击“编辑”按钮（回显数据）
-const handleEditShift = (row) => {
-    shiftForm.value = { ...row } // 将当前行的数据拷贝到表单里
-    shiftDialogVisible.value = true
-}
-
-// 4. 提交保存（对接后端的 @PostMapping("/shift/save")）
-const submitShiftSave = async () => {
-    try {
-        await request.post(`/api/shift/save?role=${currentUser.value.role}`, shiftForm.value)
-        ElMessage.success('保存成功')
-        shiftDialogVisible.value = false
-        initData() // 重新拉取数据，刷新表格
-        fetchSchedules()
-    } catch (error) {
-        ElMessage.error('保存失败')
-    }
-}
-
-// 5. 删除班次（对接后端的 @DeleteMapping("/shift/delete/{id}")）
-const confirmDeleteShift = async (id) => {
-    try {
-        await request.delete(`/api/shift/delete/${id}`)
-        ElMessage.success('删除成功')
-        initData() // 刷新表格
-        fetchSchedules()
-    } catch (error) {
-        ElMessage.error('删除失败，可能该班次正在被使用')
-    }
-}
 
 
-// 核心函数：加工当天的汇总数据
+
+
+
+
+
+
+// --------------------------------排班管理---------------------------------------------
+
+
+
+
+
+
+
+
+
+
+// Vue 会为日历的每一个格子调用它，用来统计并显示该天“早班 X 人、晚班 Y 人”的小圆点
 const getDailySummary = (day) => {
     // 1. 筛选出当天的所有排班
     const daySchedules = scheduleList.value.filter(s => s.workDate === day)
@@ -714,43 +674,47 @@ const getDailySummary = (day) => {
     }))
 }
 
-const handleApprove = async (id) => {
-    try {
-        const res = await request.post(`/api/correction/approve?id=${id}`)
-        if (res === 'SUCCESS') {
-            ElMessage.success('审批通过，考勤记录已自动修复')
-            fetchCorrectionList() // 重新刷新列表
-        }
-    } catch (error) {
-        ElMessage.error('操作失败')
-    }
+// 根据日历当前的月份获取整月的排班列表
+const fetchSchedules = async () => {
+    // 🌟 核心改进：使用本地时间获取年和月，避免时区偏差
+    const d = currentDate.value
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0') // getMonth() 是 0-11，所以要 +1
+    const monthStr = `${year}-${month}` // 结果如 "2026-04"
+
+    const res = await request.get(`/api/schedule/list?month=${monthStr}`)
+    scheduleList.value = res
 }
 
-// 获取申请列表
-const fetchCorrectionList = async () => {
-    try {
-        const res = await request.get('/api/correction/list')
-        correctionList.value = res
-    } catch (error) {
-        ElMessage.error('获取补签列表失败')
-    }
+// 监听日历绑定的日期变量
+watch(currentDate, async () => {
+    console.log('月份已切换，当前日期为:', currentDate.value);
+
+    // 🌟 1. 获取排班数据 (旧功能)
+    await fetchSchedules();
+
+    // 🌟 2. 获取节假日数据 (新功能预留)
+    // 如果你还没定义 fetchHolidays，可以先注释掉下面这一行
+    await fetchHolidays();
+
+}, { immediate: true }); // 🌟 关键：确保页面一打开就执行一次
+
+// 点击“去排班”触发，排班详情关闭、分配班次打开
+const handleGoToSchedule = (day) => {
+    detailVisible.value = false; // 先关掉“详情”
+    openSchedule(day);           // 再打开“排班分配”
+};
+
+// 保存当日排班
+const submitSchedule = async () => {
+    await request.post('/api/schedule/save', scheduleForm.value)
+    ElMessage.success('排班成功')
+    dialogVisible.value = false
+    fetchSchedules() // 刷新日历数据
+    initData()
 }
 
-// 驳回申请（简单处理，直接改状态即可）
-const handleReject = async (id) => {
-    try {
-        // 调用刚才写的接口
-        const res = await request.post(`/api/correction/reject?applyId=${id}`)
-        if (res === 'SUCCESS') {
-            ElMessage.warning('申请已驳回') // 驳回用 warning 橙色提醒更合适
-            fetchCorrectionList() // 刷新列表，被驳回的申请状态会变红
-        }
-    } catch (error) {
-        ElMessage.error('操作失败')
-    }
-}
-
-//删除排班
+//删除单个员工排班
 const confirmDelete = async (id) => {
 
     // 调用后端删除接口
@@ -792,42 +756,211 @@ const clearDailySchedule = async () => {
     }
 }
 
-//缺勤报红
-const tableRowClassName = ({ row }) => {
-    // 如果状态是 4 (缺勤)，返回自定义的类名
-    if (row.status === 4) {
-        return 'absent-row'
+// 点击日历格子时触发，显示该天具体有哪些员工值班。
+const viewDailyDetail = async (day) => {
+
+    selectedDay.value = day
+    await initData(day);
+    // 🌟 2. 匹配节假日 (新功能)
+    // 依然使用 substring(0, 10) 防止 4 月份匹配失败
+    const holidayInfo = holidayList.value.find(h =>
+        h.holidayDate && h.holidayDate.substring(0, 10) === day
+    );
+    if (holidayInfo) {
+        isHoliday.value = true;
+        holidayName.value = holidayInfo.name;
+    } else {
+        // 重要：如果不是节日，一定要清空，否则会残留上一次点击的节日名
+        isHoliday.value = false;
+        holidayName.value = '';
     }
-    return ''
+    dailyStaffList.value = scheduleList.value.filter(s => s.workDate === day)
+    detailVisible.value = true
 }
 
-//应打卡
-const totalExpected = computed(() => {
-    // 逻辑：找出打卡日期为今天的排班人数（后端重构后，allRecords里每一行就是一个人）
-    const today = new Date().toISOString().split('T')[0]
-    return allRecords.value.filter(r => r.punchDate === today).length
-})
+// 🌟 检查某一天是否为节假日（供日历格子渲染使用）
+const isHolidayDate = (day) => {
+    // 1. 安全检查：如果节假日名单还没加载出来，直接返回 false
+    if (!holidayList.value || holidayList.value.length === 0) {
+        return false;
+    }
 
-//缺勤人数
-const absentCount = computed(() => {
-    const today = new Date().toISOString().split('T')[0]
-    return allRecords.value.filter(r => r.punchDate === today && r.status === 4).length
-})
+    // 2. 匹配逻辑：拿着日历传进来的 day (2026-03-19) 去名单里找
+    // 使用 some 只要找到一个匹配就返回 true
+    return holidayList.value.some(h => {
+        // 确保数据库记录里有日期字段
+        if (h && h.holidayDate) {
+            // 🌟 核心：强制只取前10位对比，无视后端带不带 00:00:00
+            return h.holidayDate.substring(0, 10) === day;
+        }
+        return false;
+    });
+};
 
-//早退人数
-const earlyCount = computed(() => {
-    const today = new Date().toISOString().split('T')[0]
-    return allRecords.value.filter(r => r.punchDate === today && (r.status === 2 || r.status === 3)).length
-})
+// 节假日配置，设置某天为“休”并清空当日排班
+const saveHoliday = async () => {
+    try {
+        const data = {
+            holidayDate: selectedDay.value,
+            name: holidayName.value,
+            isWorkDay: 0
+        };
 
-// 1. 今日迟到人数
-const lateCount = computed(() => {
-    const today = new Date().toISOString().split('T')[0]
-    return allRecords.value.filter(r =>
-        r.punchDate === today && (r.status === 1 || r.status === 3)
-    ).length
-})
+        // 1. 发送保存请求
+        await request.post('/api/holiday/save', data);
+        ElMessage.success('设置成功');
 
+        await clearDailySchedule();
+
+        // 🌟 2. 核心：重新拉取本月的节假日列表
+        // 这一步执行完，holidayList 变了，日历格子的 isHolidayDate(day) 会自动重新计算
+        await fetchHolidays();
+
+    } catch (err) {
+        console.error("保存失败:", err);
+    }
+};
+
+// 节假日配置，使节假日恢复为普通日期
+const removeHoliday = async () => {
+    // 1. 先尝试在已加载的名单里找 ID
+    const holidayInfo = holidayList.value.find(h =>
+        h.holidayDate && h.holidayDate.substring(0, 10) === selectedDay.value
+    );
+
+    // 2. 如果找到了 ID，说明数据库有记录，需要请求后端删除
+    if (holidayInfo) {
+        try {
+            await request.delete(`/api/holiday/delete?id=${holidayInfo.id}`);
+            ElMessage.success('已恢复为普通日期');
+            await fetchHolidays(); // 刷新日历标红状态
+        } catch (err) {
+            ElMessage.error('删除失败');
+        }
+    } else {
+        // 3. 🌟 如果没找到 ID，说明用户只是点开了“设为节日”但没保存
+        // 这种情况下直接关掉输入框即可，不需要请求后端
+        console.log("仅重置前端显示状态");
+    }
+
+    // 无论是否发了请求，最后都要重置弹窗内的显示状态
+    isHoliday.value = false;
+    holidayName.value = '';
+};
+
+
+
+
+
+
+
+
+
+
+// --------------------------------班次设置---------------------------------------------
+
+
+
+
+
+
+// 班次的增删改，提交保存
+const submitShiftSave = async () => {
+    try {
+        await request.post(`/api/shift/save?role=${currentUser.value.role}`, shiftForm.value)
+        ElMessage.success('保存成功')
+        shiftDialogVisible.value = false
+        initData() // 重新拉取数据，刷新表格
+        fetchSchedules()
+    } catch (error) {
+        ElMessage.error('保存失败')
+    }
+}
+
+// 删除班次
+const confirmDeleteShift = async (id) => {
+    try {
+        await request.delete(`/api/shift/delete/${id}`)
+        ElMessage.success('删除成功')
+        initData() // 刷新表格
+        fetchSchedules()
+    } catch (error) {
+        ElMessage.error('删除失败，可能该班次正在被使用')
+    }
+}
+
+
+
+
+
+
+
+
+
+// --------------------------------补签审批---------------------------------------------
+
+
+
+
+
+
+
+
+
+// 获取补签申请列表
+const fetchCorrectionList = async () => {
+    try {
+        const res = await request.get('/api/correction/list')
+        correctionList.value = res
+    } catch (error) {
+        ElMessage.error('获取补签列表失败')
+    }
+}
+
+// 补签申请的审批
+const handleApprove = async (id) => {
+    try {
+        const res = await request.post(`/api/correction/approve?id=${id}`)
+        if (res === 'SUCCESS') {
+            ElMessage.success('审批通过，考勤记录已自动修复')
+            fetchCorrectionList() // 重新刷新列表
+        }
+    } catch (error) {
+        ElMessage.error('操作失败')
+    }
+}
+
+// 驳回补签申请（简单处理，直接改状态即可）
+const handleReject = async (id) => {
+    try {
+        // 调用刚才写的接口
+        const res = await request.post(`/api/correction/reject?applyId=${id}`)
+        if (res === 'SUCCESS') {
+            ElMessage.warning('申请已驳回') // 驳回用 warning 橙色提醒更合适
+            fetchCorrectionList() // 刷新列表，被驳回的申请状态会变红
+        }
+    } catch (error) {
+        ElMessage.error('操作失败')
+    }
+}
+
+
+
+
+
+
+
+
+
+// --------------------------------员工管理---------------------------------------------
+
+
+
+
+
+
+
+// 添加新员工
 const submitUser = async () => {
     try {
         const res = await request.post('/api/user/add', newUser.value)
@@ -858,8 +991,7 @@ const fetchUserList = async () => {
     }
 }
 
-
-//员工状态
+//更改员工任职状态
 const changeStatus = async (id, status) => {
     try {
         // 使用 URLSearchParams 传参，或者直接拼在 URL 后
@@ -873,7 +1005,7 @@ const changeStatus = async (id, status) => {
     }
 }
 
-//员工权限
+//修改员工权限，如果修改的是自己，会强制刷新页面以应用新权限。
 const handleRoleChange = async (row) => {
     try {
         // 1. 调用后端更新接口
@@ -908,28 +1040,117 @@ const handleRoleChange = async (row) => {
     }
 }
 
-// 查看详情
 
-const viewDailyDetail = async (day) => {
 
-    selectedDay.value = day
-    await initData(day);
-    // 🌟 2. 匹配节假日 (新功能)
-    // 依然使用 substring(0, 10) 防止 4 月份匹配失败
-    const holidayInfo = holidayList.value.find(h =>
-        h.holidayDate && h.holidayDate.substring(0, 10) === day
-    );
-    if (holidayInfo) {
-        isHoliday.value = true;
-        holidayName.value = holidayInfo.name;
-    } else {
-        // 重要：如果不是节日，一定要清空，否则会残留上一次点击的节日名
-        isHoliday.value = false;
-        holidayName.value = '';
+
+
+
+
+
+// --------------------------------考勤环境---------------------------------------------
+
+
+
+
+
+// 获取管理员当前的真实 IP（调用我们刚写的后端接口）
+const fetchAdminIp = async () => {
+    try {
+        const res = await request.get('/api/attendance/currentIp')
+        adminCurrentIp.value = res
+    } catch (err) {
+        ElMessage.error('无法获取当前 IP')
     }
-    dailyStaffList.value = scheduleList.value.filter(s => s.workDate === day)
-    detailVisible.value = true
 }
+
+
+
+
+
+
+const formatTime = (timeStr) => {
+    if (!timeStr) return '--:--'
+    return timeStr.split('T')[1].split('.')[0]
+}
+
+const fetchAllLeaves = async () => {
+    const res = await request.get('/api/leave/all')
+    allLeaveList.value = res
+}
+
+const fetchAllOvertime = async () => {
+    const res = await request.get('/api/overtime/all')
+    allOvertimeList.value = res
+}
+
+const initData = async (workDate = null) => {
+    try {
+        // 1. 获取班次（维持原样）
+        const sRes = await request.get('/api/shift/all')
+        shifts.value = sRes
+
+        // 2. 获取员工
+        // 🌟 核心：构建带日期参数的 URL
+        let url = '/api/schedule/availableUsers'
+        if (workDate) {
+            // 如果传了日期，URL 变成 .../users?workDate=2026-03-18
+            // 后端接收到后，会自动过滤掉那天请假的人
+            url += `?workDate=${workDate}`
+        }
+
+        const uRes = await request.get(url)
+        users.value = uRes // 更新 Vue 响应式变量，下拉框会自动变
+
+        // 3. 获取现有排班（维持原样）
+        fetchSchedules()
+    } catch (err) {
+        console.error('初始化数据失败', err)
+    }
+}
+
+
+
+
+
+
+// 4. 打开分配弹窗
+const openSchedule = (day) => {
+    scheduleForm.value.workDate = day
+    dialogVisible.value = true
+}
+
+
+
+// 2. 点击“新增”按钮
+const handleAddShift = () => {
+    shiftForm.value = { id: null, shiftName: '', startTime: '', endTime: '' }
+    shiftDialogVisible.value = true
+}
+
+// 3. 点击“编辑”按钮（回显数据）
+const handleEditShift = (row) => {
+    shiftForm.value = { ...row } // 将当前行的数据拷贝到表单里
+    shiftDialogVisible.value = true
+}
+
+
+
+
+
+//缺勤报红
+const tableRowClassName = ({ row }) => {
+    // 如果状态是 4 (缺勤)，返回自定义的类名
+    if (row.status === 4) {
+        return 'absent-row'
+    }
+    return ''
+}
+
+
+
+
+
+
 
 // 获取节假日列表
 const fetchHolidays = async () => {
@@ -946,83 +1167,9 @@ const fetchHolidays = async () => {
     }
 }
 
-// 🌟 检查某一天是否为节假日（供日历格子渲染使用）
-const isHolidayDate = (day) => {
-    // 1. 安全检查：如果节假日名单还没加载出来，直接返回 false
-    if (!holidayList.value || holidayList.value.length === 0) {
-        return false;
-    }
 
-    // 2. 匹配逻辑：拿着日历传进来的 day (2026-03-19) 去名单里找
-    // 使用 some 只要找到一个匹配就返回 true
-    return holidayList.value.some(h => {
-        // 确保数据库记录里有日期字段
-        if (h && h.holidayDate) {
-            // 🌟 核心：强制只取前10位对比，无视后端带不带 00:00:00
-            return h.holidayDate.substring(0, 10) === day;
-        }
-        return false;
-    });
-};
 
-const saveHoliday = async () => {
-    try {
-        const data = {
-            holidayDate: selectedDay.value,
-            name: holidayName.value,
-            isWorkDay: 0
-        };
 
-        // 1. 发送保存请求
-        await request.post('/api/holiday/save', data);
-        ElMessage.success('设置成功');
-
-        await clearDailySchedule();
-
-        // 🌟 2. 核心：重新拉取本月的节假日列表
-        // 这一步执行完，holidayList 变了，日历格子的 isHolidayDate(day) 会自动重新计算
-        await fetchHolidays();
-
-    } catch (err) {
-        console.error("保存失败:", err);
-    }
-};
-
-const removeHoliday = async () => {
-    // 1. 先尝试在已加载的名单里找 ID
-    const holidayInfo = holidayList.value.find(h =>
-        h.holidayDate && h.holidayDate.substring(0, 10) === selectedDay.value
-    );
-
-    // 2. 如果找到了 ID，说明数据库有记录，需要请求后端删除
-    if (holidayInfo) {
-        try {
-            await request.delete(`/api/holiday/delete?id=${holidayInfo.id}`);
-            ElMessage.success('已恢复为普通日期');
-            await fetchHolidays(); // 刷新日历标红状态
-        } catch (err) {
-            ElMessage.error('删除失败');
-        }
-    } else {
-        // 3. 🌟 如果没找到 ID，说明用户只是点开了“设为节日”但没保存
-        // 这种情况下直接关掉输入框即可，不需要请求后端
-        console.log("仅重置前端显示状态");
-    }
-
-    // 无论是否发了请求，最后都要重置弹窗内的显示状态
-    isHoliday.value = false;
-    holidayName.value = '';
-};
-
-// 1. 获取管理员当前的真实 IP（调用我们刚写的后端接口）
-const fetchAdminIp = async () => {
-    try {
-        const res = await request.get('/api/attendance/currentIp')
-        adminCurrentIp.value = res
-    } catch (err) {
-        ElMessage.error('无法获取当前 IP')
-    }
-}
 
 // 2. 快捷填入
 const setAsOfficeIp = () => {
@@ -1041,6 +1188,8 @@ const saveConfig = async () => {
         ElMessage.error('保存失败')
     }
 }
+
+
 
 onMounted(() => {
     fetchAll()

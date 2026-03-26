@@ -286,72 +286,11 @@ const formatTime = (timeStr) => {
   return timeStr.includes('T') ? timeStr.split('T')[1].split('.')[0] : timeStr
 }
 
-// --- 3. 核心业务逻辑区 ---
-// 查询当前员工的记录
-const fetchRecords = async () => {
-  if (!userId.value) return
-  try {
-    const res = await request.get(`/api/attendance/myRecords?userId=${userId.value}`)
-    recordList.value = res
-  } catch (err) {
-    console.error("加载记录失败", err)
-    ElMessage.error('无法获取考勤记录，请检查网络或后端服务')
-  }
-}
 
-// 保存个人信息（后续可以对接后端接口）
-const saveUserInfo = async () => {
+// --------------------------------考勤打卡---------------------------------------------
 
-  userInfo.value.id = userId.value;
 
-  try {
 
-    // 🌟 核心：发送 post 请求到后端接口
-    const res = await request.post('/api/user/update', userInfo.value)
-    ElMessage.success('个人信息更新成功！')
-    // 可选：重新拉取最新信息以确保同步
-    // await fetchUserInfo() 
-  } catch (err) {
-    console.error(err)
-    ElMessage.error('网络错误，保存失败')
-  }
-}
-
-// 下班打卡
-const doPunchOut = async () => {
-  if (!userId.value) return ElMessage.warning('ID不能为空')
-
-  // --- 新增校验逻辑 ---
-  // 在当前页面的记录列表里找今天的记录
-  const today = new Date().toISOString().split('T')[0]; // 获取今天日期 "2026-03-15"
-  const todayRecord = recordList.value.find(r => r.punchDate === today);
-
-  if (!todayRecord || !todayRecord.clockIn) {
-    ElMessage.error('您今天尚未办理上班打卡，请先点击上班打卡！');
-    return; // 拦截，不执行后续请求
-  }
-  // ------------------
-
-  try {
-    const res = await request.post(`/api/attendance/punchOut?userId=${userId.value}`)
-
-    // 🌟 同样拦截 IP 限制
-    if (typeof res === 'string' && res.startsWith('IP_LIMIT:')) {
-      const currentIp = res.split(':')[1];
-      ElMessageBox.alert(
-        `下班打卡失败！您当前不在公司网络环境（IP: ${currentIp}）。<br/>请返回办公室连接 WiFi 后再打卡。`,
-        '位置异常',
-        { dangerouslyUseHTMLString: true, type: 'warning', center: true }
-      );
-      return;
-    }
-
-    ElMessage.success(res)
-    await fetchRecords()
-  } catch (err) {
-    console.error('打卡请求异常', err)
-  }
-}
 
 // 上班打卡
 const doPunchIn = async () => {
@@ -391,8 +330,95 @@ const doPunchIn = async () => {
   }
 }
 
+// 下班打卡
+const doPunchOut = async () => {
+  if (!userId.value) return ElMessage.warning('ID不能为空')
 
-// 修改 handleAvatarSuccess 函数
+  // --- 新增校验逻辑 ---
+  // 在当前页面的记录列表里找今天的记录
+  const today = new Date().toISOString().split('T')[0]; // 获取今天日期 "2026-03-15"
+  const todayRecord = recordList.value.find(r => r.punchDate === today);
+
+  if (!todayRecord || !todayRecord.clockIn) {
+    ElMessage.error('您今天尚未办理上班打卡，请先点击上班打卡！');
+    return; // 拦截，不执行后续请求
+  }
+  // ------------------
+
+  try {
+    const res = await request.post(`/api/attendance/punchOut?userId=${userId.value}`)
+
+    // 🌟 同样拦截 IP 限制
+    if (typeof res === 'string' && res.startsWith('IP_LIMIT:')) {
+      const currentIp = res.split(':')[1];
+      ElMessageBox.alert(
+        `下班打卡失败！您当前不在公司网络环境（IP: ${currentIp}）。<br/>请返回办公室连接 WiFi 后再打卡。`,
+        '位置异常',
+        { dangerouslyUseHTMLString: true, type: 'warning', center: true }
+      );
+      return;
+    }
+
+    ElMessage.success(res)
+    await fetchRecords()
+  } catch (err) {
+    console.error('打卡请求异常', err)
+  }
+}
+
+// 查询当前员工考勤的记录
+const fetchRecords = async () => {
+  if (!userId.value) return
+  try {
+    const res = await request.get(`/api/attendance/myRecords?userId=${userId.value}`)
+    recordList.value = res
+  } catch (err) {
+    console.error("加载记录失败", err)
+    ElMessage.error('无法获取考勤记录，请检查网络或后端服务')
+  }
+}
+
+// 提交补签申请
+const submitCorrection = async () => {
+  if (!correctionForm.applyDate || !correctionForm.type || !correctionForm.reason) {
+    ElMessage.error('请填写完整的申请信息')
+    return
+  }
+
+  try {
+    // 这里的路径根据你的后端 Controller 确定
+    const res = await request.post('/api/correction/apply', correctionForm)
+
+    ElMessage.success('申请提交成功，请等待管理员审批')
+    correctionVisible.value = false
+    // 重置表单
+    correctionForm.applyDate = ''
+    correctionForm.type = ''
+    correctionForm.reason = ''
+
+    if (res === 'EXISTED') {
+      ElMessage.warning('您已提交过该日期的补签申请，请勿重复提交')
+    }
+  } catch (error) {
+    ElMessage.error('提交失败，请检查网络')
+  }
+}
+
+
+
+
+
+
+
+
+// --------------------------------我的排班---------------------------------------------
+// --------------------------------个人中心---------------------------------------------
+
+
+
+
+
+// 头像上传成功后的处理
 const handleAvatarSuccess = (res) => {
   if (res.code === 200) {
     const baseUrl = 'http://localhost:8081'; // 🌟 定义后端基地址
@@ -408,7 +434,20 @@ const handleAvatarSuccess = (res) => {
   }
 }
 
-// 提交请假
+
+
+
+
+
+
+
+// --------------------------------请假申请---------------------------------------------
+
+
+
+
+
+// 提交请假申请
 const submitLeave = async () => {
   if (!leaveDateRange.value || leaveDateRange.value.length < 2) {
     ElMessage.warning('请选择日期范围！')
@@ -446,20 +485,7 @@ const submitLeave = async () => {
   }
 }
 
-
-// 获取我的请假历史（记得在 onMounted 里也调用一下它）
-const fetchMyLeaves = async () => {
-  // 注意：这个接口你后端也要顺手写一个 getByUserId 的版本哦！
-  const res = await request.get(`/api/leave/my?userId=${userId.value}`)
-  myLeaveList.value = res
-}
-
-const hasClockedInToday = computed(() => {
-  const today = new Date().toISOString().split('T')[0];
-  return recordList.value.some(r => r.punchDate === today && r.clockIn);
-})
-
-// 2. 上传成功的回调
+// 请假申请附件上传
 const handleUploadSuccess = (res) => {
   // 🌟 统一逻辑：手动解析 Result 对象
   if (res && res.code === 200) {
@@ -470,12 +496,23 @@ const handleUploadSuccess = (res) => {
   }
 }
 
-// 3. 移除图片
-const handleRemove = () => {
-  leaveForm.value.attachment = ''
-}
 
-// 2. 提交加班申请
+
+
+
+
+
+
+
+
+
+// --------------------------------加班申请---------------------------------------------
+
+
+
+
+
+// 提交加班申请
 const submitOvertime = async () => {
   if (!otForm.value.overtimeDate) return ElMessage.warning('请选择日期')
   try {
@@ -493,6 +530,64 @@ const submitOvertime = async () => {
   }
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+// 保存个人信息（后续可以对接后端接口）
+const saveUserInfo = async () => {
+
+  userInfo.value.id = userId.value;
+
+  try {
+
+    // 🌟 核心：发送 post 请求到后端接口
+    const res = await request.post('/api/user/update', userInfo.value)
+    ElMessage.success('个人信息更新成功！')
+    // 可选：重新拉取最新信息以确保同步
+    // await fetchUserInfo() 
+  } catch (err) {
+    console.error(err)
+    ElMessage.error('网络错误，保存失败')
+  }
+}
+
+
+
+
+
+
+
+
+
+// 获取我的请假历史（记得在 onMounted 里也调用一下它）
+const fetchMyLeaves = async () => {
+  // 注意：这个接口你后端也要顺手写一个 getByUserId 的版本哦！
+  const res = await request.get(`/api/leave/my?userId=${userId.value}`)
+  myLeaveList.value = res
+}
+
+const hasClockedInToday = computed(() => {
+  const today = new Date().toISOString().split('T')[0];
+  return recordList.value.some(r => r.punchDate === today && r.clockIn);
+})
+
+
+// 3. 移除图片
+const handleRemove = () => {
+  leaveForm.value.attachment = ''
+}
+
+
+
 // 3. 获取我的加班记录
 const fetchMyOvertime = async () => {
   try {
@@ -503,31 +598,6 @@ const fetchMyOvertime = async () => {
   }
 }
 
-// 3. 补签提交逻辑
-const submitCorrection = async () => {
-  if (!correctionForm.applyDate || !correctionForm.type || !correctionForm.reason) {
-    ElMessage.error('请填写完整的申请信息')
-    return
-  }
-
-  try {
-    // 这里的路径根据你的后端 Controller 确定
-    const res = await request.post('/api/correction/apply', correctionForm)
-
-    ElMessage.success('申请提交成功，请等待管理员审批')
-    correctionVisible.value = false
-    // 重置表单
-    correctionForm.applyDate = ''
-    correctionForm.type = ''
-    correctionForm.reason = ''
-
-    if (res === 'EXISTED') {
-      ElMessage.warning('您已提交过该日期的补签申请，请勿重复提交')
-    }
-  } catch (error) {
-    ElMessage.error('提交失败，请检查网络')
-  }
-}
 
 const fetchMySchedule = async () => {
   try {
