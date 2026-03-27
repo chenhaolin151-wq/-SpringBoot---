@@ -24,7 +24,7 @@ const loginForm = ref({ username: '', password: '' })
 
 const handleLogin = async () => {
   try {
-    const res = await request.post('http://localhost:8080/api/user/login', loginForm.value)
+    const res = await request.post('/api/user/login', loginForm.value)
     if (typeof res === 'string' && res.startsWith('FAILED')) {
       ElMessage.error(res)
     } else {

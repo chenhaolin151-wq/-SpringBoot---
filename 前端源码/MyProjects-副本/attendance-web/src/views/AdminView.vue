@@ -347,7 +347,7 @@
                 </el-table>
             </el-tab-pane>
 
-            <el-tab-pane label="员工管理" name="userManagement">
+            <el-tab-pane v-if="currentUser.role === 'ADMIN_HR'" label="员工管理" name="userManagement">
                 <div style="margin-bottom: 20px;">
                     <el-button type="primary" icon="Plus" @click="addVisible = true">
                         添加员工
@@ -412,7 +412,7 @@
                 </el-dialog>
             </el-tab-pane>
 
-            <el-tab-pane label="考勤环境" name="attendanceConfig">
+            <el-tab-pane v-if="currentUser.role === 'ADMIN_HR'" label="考勤环境" name="attendanceConfig">
                 <div style="max-width: 600px; margin: 20px auto;">
                     <el-card shadow="hover">
                         <template #header>
