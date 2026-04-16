@@ -1,72 +1,101 @@
 <template>
-  <div v-if="!isLogin">
-    <LoginView />
-  </div>
+  <div id="app">
+    <el-container v-if="isLoggedIn" class="layout-container">
+      <el-header class="header">
+        <div class="header-left">
+          <span class="logo">考勤管理系统</span>
+          <el-menu mode="horizontal" :default-active="activePath" background-color="#409EFF" text-color="#fff"
+            active-text-color="#ffd04b" router :ellipsis="false" style="border: none; margin-left: 40px;">
+            <el-menu-item index="/user">个人打卡</el-menu-item>
 
-  <div v-else class="main-app">
-    <el-menu mode="horizontal" default-active="1" @select="handleSelect" background-color="#545c64" text-color="#fff">
-      <el-menu-item index="1">员工打卡</el-menu-item>
-      <el-menu-item index="2" v-if="userRole && userRole.startsWith('ADMIN')">管理员后台</el-menu-item>
-      
-      <div class="user-info-tag">
-        <span>欢迎您，{{ userName }}</span>
-        <el-button type="info" link @click="handleLogout" style="margin-left: 20px;">退出登录</el-button>
-      </div>
-    </el-menu>
+            <el-menu-item v-if="currentUser.role === 'ADMIN_HR' || currentUser.role === 'ADMIN_NORMAL'" index="/admin">
+              管理面板
+            </el-menu-item>
+          </el-menu>
+        </div>
 
-    <div class="content">
-      <UserView v-if="activeTab === '1'" />
-      <AdminView v-if="activeTab === '2'" />
-    </div>
+        <div class="user-info">
+          <span>{{ currentUser.realName }} ({{ roleName }})</span>
+          <el-button type="danger" link @click="handleLogout" style="margin-left: 20px; color: white;">退出</el-button>
+        </div>
+      </el-header>
+
+      <el-main>
+        <router-view />
+      </el-main>
+    </el-container>
+
+    <router-view v-else />
   </div>
 </template>
 
 <script setup>
-import { ref,onMounted } from 'vue'
-import LoginView from './views/LoginView.vue'
-import UserView from './views/UserView.vue'
-import AdminView from './views/AdminView.vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 
-// 1. 初始化登录状态
-const isLogin = ref(false)
-const activeTab = ref('1')
-const userName = ref('')
-const userRole = ref('')
+const router = useRouter()
+const route = useRoute()
+const currentUser = ref({})
 
-// 2. 从浏览器缓存里读取用户信息
-const savedUser = JSON.parse(localStorage.getItem('user') || 'null')
-if (savedUser) {
-  isLogin.value = true
-  userName.value = savedUser.realName || savedUser.username
-  userRole.value = savedUser.role // 假设数据库里有角色字段
+const activePath = computed(() => route.path)
+const isLoggedIn = computed(() => !!currentUser.value.id)
+
+// 角色显示转换
+const roleName = computed(() => {
+  const roles = {
+    'ADMIN_HR': '人事主管',
+    'ADMIN_NORMAL': '普通主管',
+    'EMPLOYEE': '普通员工'
+  }
+  return roles[currentUser.value.role] || '未知角色'
+})
+
+
+
+const loadUser = () => {
+  const user = localStorage.getItem('user')
+  if (user) currentUser.value = JSON.parse(user)
 }
 
-// 3. 菜单切换逻辑
-const handleSelect = (index) => {
-  console.log("当前点击的菜单索引是：", index) // F12看这里
-  activeTab.value = index
-}
+// 每当路由地址 (route.path) 改变时，重新执行一次 loadUser
+watch(
+  () => route.path,
+  () => {
+    loadUser()
+  }
+)
 
-// 4. 退出登录逻辑
 const handleLogout = () => {
-  localStorage.removeItem('user') // 清空缓存
-  location.reload() // 刷新页面，回到登录态
+  localStorage.removeItem('user')
+  currentUser.value = {}
+  router.push('/login')
 }
 
-// 监听登录状态或在挂载时获取
 onMounted(() => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
-  userRole.value = user.role // 确保这里拿到的是 'ADMIN_HR' 等字符串
+  loadUser()
 })
 </script>
 
-<style>
-body { margin: 0; font-family: sans-serif; }
-.user-info-tag {
-  float: right;
-  line-height: 60px;
+<style scoped>
+.header {
+  background-color: #409EFF;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   color: white;
-  padding-right: 20px;
 }
-.content { padding: 20px; }
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.logo {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.layout-container {
+  height: 100vh;
+}
 </style>
