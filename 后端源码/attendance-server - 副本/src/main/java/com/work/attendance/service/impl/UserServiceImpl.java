@@ -65,7 +65,7 @@ public class UserServiceImpl implements UserService {
         user.setId(id);
         user.setStatus(status); //
         int rows = userMapper.updateById(user);
-        return rows > 0 ? Result.success("状态更新成功") : Result.error("操作失败");
+        return rows > 0 ? Result.success("SUCCESS") : Result.error("操作失败");
     }
 
     @Override
@@ -74,7 +74,7 @@ public class UserServiceImpl implements UserService {
         user.setId(id);
         user.setRole(role); //
         int rows = userMapper.updateById(user);
-        return rows > 0 ? Result.success("角色权限更新成功") : Result.error("操作失败");
+        return rows > 0 ? Result.success("SUCCESS") : Result.error("操作失败");
     }
 
     @Override

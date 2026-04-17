@@ -759,7 +759,7 @@ const confirmDelete = async (id) => {
     // 调用后端删除接口
     try {
         const res = await request.delete(`/api/schedule/delete/${id}`)
-        if (res === 'SUCCESS') {
+        if (res === '删除成功') {
             ElMessage.success('删除成功')
             // 🌟 重点：删除后需要重新获取日历数据并刷新当前弹窗列表
             fetchSchedules() // 刷新日历数据
@@ -777,7 +777,7 @@ const clearDailySchedule = async () => {
         // selectedDay 就是你在 viewDailyDetail 时记录的那个日期字符串（如 "2026-03-17"）
         const res = await request.post(`/api/schedule/deleteByDate?date=${selectedDay.value}`)
 
-        if (res === 'SUCCESS') {
+        if (res === '批量删除成功') {
             ElMessage.success(`${selectedDay.value} 的排班已全部清空`)
 
             // 1. 核心：清空当前弹窗显示的列表，让表格瞬间变空
@@ -1159,7 +1159,7 @@ const saveConfig = async () => {
     if (!officeIp.value) return ElMessage.warning('请填写有效的 IP 地址')
     try {
         const res = await request.post(`/api/attendance/updateConfig?ip=${officeIp.value}`)
-        if (res === 'SUCCESS') {
+        if (res === '更新成功') {
             ElMessage.success('考勤地点配置已更新！')
         }
     } catch (err) {

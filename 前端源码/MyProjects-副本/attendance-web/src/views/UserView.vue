@@ -292,7 +292,14 @@ const formatTime = (timeStr) => {
 
 // --------------------------------考勤打卡---------------------------------------------
 
-
+// 获取本地日期字符串 (格式: YYYY-MM-DD)
+const getLocalDate = () => {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 
 // 上班打卡
@@ -302,25 +309,6 @@ const doPunchIn = async () => {
   try {
     // 1. 发送打卡请求
     const res = await request.post(`/api/attendance/punchIn?userId=${userId.value}`)
-
-    // 🌟 2. 核心拦截：判断是否触碰了 IP 限制
-    // 后端返回的格式是 "IP_LIMIT:123.x.x.x"
-    if (typeof res === 'string' && res.startsWith('IP_LIMIT:')) {
-      const currentIp = res.split(':')[1]; // 拿到冒号后面的真实 IP
-
-      // 弹出更醒目的警告框（比普通 Message 更适合毕设演示）
-      ElMessageBox.alert(
-        `打卡失败！系统检测到您当前处于非办公网络环境。 <br/><b>您的当前 IP：</b> <span style="color: #f56c6c">${currentIp}</span><br/><br/>请连接公司授权的 WiFi 后再试。`,
-        '地理围栏异常',
-        {
-          dangerouslyUseHTMLString: true,
-          confirmButtonText: '确定',
-          type: 'warning',
-          center: true
-        }
-      );
-      return; // 拦截，不执行后面的刷新逻辑
-    }
 
     // 🌟 3. 原有成功逻辑
     // 如果没有被 IP 拦截，说明打卡成功，执行你原来的操作
@@ -339,31 +327,18 @@ const doPunchOut = async () => {
 
   // --- 新增校验逻辑 ---
   // 在当前页面的记录列表里找今天的记录
-  const today = new Date().toISOString().split('T')[0]; // 获取今天日期 "2026-03-15"
-  const todayRecord = recordList.value.find(r => r.punchDate === today);
-
-  if (!todayRecord || !todayRecord.clockIn) {
+ if (!hasClockedInToday.value) {
     ElMessage.error('您今天尚未办理上班打卡，请先点击上班打卡！');
-    return; // 拦截，不执行后续请求
+    return;
   }
   // ------------------
 
   try {
     const res = await request.post(`/api/attendance/punchOut?userId=${userId.value}`)
 
-    // 🌟 同样拦截 IP 限制
-    if (typeof res === 'string' && res.startsWith('IP_LIMIT:')) {
-      const currentIp = res.split(':')[1];
-      ElMessageBox.alert(
-        `下班打卡失败！您当前不在公司网络环境（IP: ${currentIp}）。<br/>请返回办公室连接 WiFi 后再打卡。`,
-        '位置异常',
-        { dangerouslyUseHTMLString: true, type: 'warning', center: true }
-      );
-      return;
-    }
-
     ElMessage.success(res)
-    await fetchRecords()
+    await fetchRecords()// 刷新列表，更新界面状态
+
   } catch (err) {
     console.error('打卡请求异常', err)
   }
@@ -409,7 +384,7 @@ const submitCorrection = async () => {
 
 // 通过检查今日记录来判定用户是否已打过卡，从而控制打卡按钮的状态
 const hasClockedInToday = computed(() => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDate(); // 🌟 使用本地日期
   return recordList.value.some(r => r.punchDate === today && r.clockIn);
 })
 

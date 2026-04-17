@@ -15,7 +15,17 @@ request.interceptors.response.use(
     if (res.code === 200) {
       // 这里的 res.data 就是后端 Result 类里的那个 T data 
       return res.data; 
-    } else {
+    } 
+    else if (res.code === 501) {
+      // 🌟 针对 IP 限制状态码进行特殊弹窗处理
+      const currentIp = res.msg.split(':')[1]; // 提取出具体的 IP
+      ElMessage({
+        message: `打卡失败！系统检测到您当前处于非办公网络环境（您的 IP：${currentIp}），请连接公司 WiFi 后重试。`,
+        type: 'error',
+        duration: 1000 // 增加显示时间，方便用户看清
+      });
+      return Promise.reject(res.msg);
+    }else {
       // 如果后端返回 code 500，直接弹窗报错，不需要在每个页面写 alert
       ElMessage.error(res.msg || '系统错误');
       return Promise.reject(res.msg);
