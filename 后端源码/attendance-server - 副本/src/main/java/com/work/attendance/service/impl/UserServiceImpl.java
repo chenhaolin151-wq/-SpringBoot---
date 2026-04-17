@@ -5,10 +5,13 @@ import com.work.attendance.common.Result;
 import com.work.attendance.entity.User;
 import com.work.attendance.mapper.UserMapper;
 import com.work.attendance.service.UserService;
+import com.work.attendance.utils.JwtUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -17,27 +20,37 @@ public class UserServiceImpl implements UserService {
     private UserMapper userMapper;
 
     @Override
-    public Result<User> login(User loginUser) {
+    public Map<String, Object> login(String username, String password) {
         // 1. 根据用户名查询数据库
         User user = userMapper.selectOne(
                 new LambdaQueryWrapper<User>()
-                        .eq(User::getUsername, loginUser.getUsername())
+                        .eq(User::getUsername, username) // 修正：使用参数 username
         );
 
         // 2. 校验逻辑
         if (user == null) {
-            return Result.error("用户不存在");
+            return null;
         }
-        if (!user.getPassword().equals(loginUser.getPassword())) {
-            return Result.error("密码错误");
+
+        if (!user.getPassword().equals(password)) {
+            return null;
         }
 
         // 假设 1 代表离职状态
         if (user.getStatus() != null && user.getStatus() == 1) {
-            return Result.error("该账号已锁定（离职状态）");
+            return null;
         }
 
-        return Result.success(user);
+        // 3. 登录成功，生成 JWT Token
+        // 使用我们之前定义的 JwtUtils [基于前文建议]
+        String token = JwtUtils.createToken(user.getId(), user.getUsername(), user.getRole());
+
+        // 4. 组装返回数据
+        Map<String, Object> loginResult = new HashMap<>();
+        loginResult.put("token", token);
+        loginResult.put("user", user); // 返回用户信息供前端存储
+
+        return loginResult;
     }
 
     @Override

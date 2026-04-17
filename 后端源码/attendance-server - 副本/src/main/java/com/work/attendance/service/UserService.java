@@ -3,6 +3,7 @@ package com.work.attendance.service;
 import com.work.attendance.common.Result;
 import com.work.attendance.entity.User;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 用户管理业务接口
@@ -11,7 +12,7 @@ public interface UserService {
     /**
      * 用户登录逻辑
      */
-    Result<User> login(User loginUser);
+    Map<String, Object> login(String username, String password);
 
     /**
      * 新增用户（设置默认密码和状态）

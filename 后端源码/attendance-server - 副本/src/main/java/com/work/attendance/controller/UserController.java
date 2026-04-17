@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @CrossOrigin
@@ -17,9 +18,12 @@ public class UserController {
     private UserService userService; // 🌟 注入 Service，不再直接注入 Mapper
 
     @PostMapping("/login")
-    public Result<User> login(@RequestBody User loginUser) {
-        // 🌟 直接调用 Service 里的标准逻辑
-        return userService.login(loginUser);
+    public Result login(@RequestBody User loginUser) {
+        Map<String, Object> data = userService.login(loginUser.getUsername(), loginUser.getPassword());
+        if (data == null) {
+            return Result.error("用户名、密码错误或账号已锁定");
+        }
+        return Result.success(data); // 将包含 token 和 user 的 Map 封装进 Result
     }
 
     @PostMapping("/add")
