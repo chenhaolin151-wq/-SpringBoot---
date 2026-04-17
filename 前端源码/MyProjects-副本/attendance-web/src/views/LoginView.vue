@@ -31,7 +31,8 @@ const handleLogin = async () => {
   if (res && res.token) { // 确认拿到了 token
     ElMessage.success('登录成功！')
 
-    localStorage.setItem('user', JSON.stringify(res)) // 这里存的是整个 Map
+    localStorage.setItem('token', res.token) // 票单独存
+    localStorage.setItem('user', JSON.stringify(res.user)) // 人单独存
 
     // 注意这里要通过 res.user 访问角色信息
     const userRole = res.user.role

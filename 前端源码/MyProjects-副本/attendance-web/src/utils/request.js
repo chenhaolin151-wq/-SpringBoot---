@@ -4,52 +4,50 @@ import { ElMessage } from 'element-plus'
 // 创建 axios 实例
 const request = axios.create({
   baseURL: 'http://localhost:8081', // 统一后端基地址
-  timeout: 5000
+  timeout: 5000,
 })
 
 // 响应拦截器：这是最神奇的地方
 request.interceptors.response.use(
-  response => {
-    let res = response.data;
+  (response) => {
+    let res = response.data
     // 如果返回的是 Result 对象，统一在这里处理
     if (res.code === 200) {
-      // 这里的 res.data 就是后端 Result 类里的那个 T data 
-      return res.data; 
-    } 
-    else if (res.code === 501) {
+      // 这里的 res.data 就是后端 Result 类里的那个 T data
+      return res.data
+    } else if (res.code === 501) {
       // 🌟 针对 IP 限制状态码进行特殊弹窗处理
-      const currentIp = res.msg.split(':')[1]; // 提取出具体的 IP
+      const currentIp = res.msg.split(':')[1] // 提取出具体的 IP
       ElMessage({
         message: `打卡失败！系统检测到您当前处于非办公网络环境（您的 IP：${currentIp}），请连接公司 WiFi 后重试。`,
         type: 'error',
-        duration: 1000 // 增加显示时间，方便用户看清
-      });
-      return Promise.reject(res.msg);
-    }else {
+        duration: 1000, // 增加显示时间，方便用户看清
+      })
+      return Promise.reject(res.msg)
+    } else {
       // 如果后端返回 code 500，直接弹窗报错，不需要在每个页面写 alert
-      ElMessage.error(res.msg || '系统错误');
-      return Promise.reject(res.msg);
+      ElMessage.error(res.msg || '系统错误')
+      return Promise.reject(res.msg)
     }
   },
-  error => {
-    ElMessage.error('服务器连接超时，请检查后端是否启动');
-    return Promise.reject(error);
-  }
+  (error) => {
+    ElMessage.error('服务器连接超时，请检查后端是否启动')
+    return Promise.reject(error)
+  },
 )
 
 // 添加请求拦截器
-request.interceptors.request.use(config => {
-   const userJson = localStorage.getItem('user')
-    if (userJson) {
-        const userData = JSON.parse(userJson)
-        // 🌟 把 token 贴在 header 里，名字必须和后端拦截器里写的一致
-        if (userData.token) {
-            config.headers['token'] = userData.token
-        }
+request.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers['token'] = token // 贴在 Header 里
     }
-    return config;
-}, error => {
-    return Promise.reject(error);
-});
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  },
+)
 
 export default request
