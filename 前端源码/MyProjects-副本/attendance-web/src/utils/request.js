@@ -39,9 +39,13 @@ request.interceptors.response.use(
 
 // 添加请求拦截器
 request.interceptors.request.use(config => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (user.token) {
-        config.headers['token'] = user.token; // 在请求头带上 Token
+   const userJson = localStorage.getItem('user')
+    if (userJson) {
+        const userData = JSON.parse(userJson)
+        // 🌟 把 token 贴在 header 里，名字必须和后端拦截器里写的一致
+        if (userData.token) {
+            config.headers['token'] = userData.token
+        }
     }
     return config;
 }, error => {
