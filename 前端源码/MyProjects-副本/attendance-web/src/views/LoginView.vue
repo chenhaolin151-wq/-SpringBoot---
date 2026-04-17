@@ -27,10 +27,13 @@ const router = useRouter()
 
 const handleLogin = async () => {
   const res = await request.post('/api/user/login', loginForm.value)
-  if (typeof res !== 'string') {
+  if (res && res.token) { // 确认拿到了 token
     ElMessage.success('登录成功！')
-    localStorage.setItem('user', JSON.stringify(res))
-    if (res.role === 'ADMIN_HR' || res.role === 'ADMIN_NORMAL') {
+    localStorage.setItem('user', JSON.stringify(res)) // 这里存的是整个 Map
+    
+    // 注意这里要通过 res.user 访问角色信息
+    const role = res.user.role 
+    if (role === 'ADMIN_HR' || role === 'ADMIN_NORMAL') {
       router.push('/admin')
     } else {
       router.push('/user')

@@ -37,4 +37,15 @@ request.interceptors.response.use(
   }
 )
 
+// 添加请求拦截器
+request.interceptors.request.use(config => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.token) {
+        config.headers['token'] = user.token; // 在请求头带上 Token
+    }
+    return config;
+}, error => {
+    return Promise.reject(error);
+});
+
 export default request
