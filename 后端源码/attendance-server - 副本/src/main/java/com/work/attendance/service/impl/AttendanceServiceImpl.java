@@ -293,14 +293,11 @@ public class AttendanceServiceImpl implements AttendanceService {
     public Result<AttendanceStatisticsVO> getStatistics(String month) {
         AttendanceStatisticsVO vo = new AttendanceStatisticsVO();
 
-        // 1. 获取趋势数据
-        // 1. 获取实际到岗趋势 (status != 4)
+        // 1. 分别获取“实到”和“应到”的原始统计数据
         List<Map<String, Object>> actualData = attendanceMapper.getMonthlyTrend(month);
-        // 2. 获取应到岗趋势 (排班表)
         List<Map<String, Object>> expectedData = attendanceMapper.getMonthlyExpectedTrend(month);
 
-// 🌟 核心逻辑：对齐日期和数据
-        // 我们以“实际”和“应到”中出现的所有日期为准
+        // 2. 将原始数据转为 Map，方便按日期快速查找
         Map<String, Integer> actualMap = new HashMap<>();
         for (Map<String, Object> m : actualData) {
             actualMap.put(m.get("date").toString(), ((Number) m.get("count")).intValue());
@@ -310,52 +307,45 @@ public class AttendanceServiceImpl implements AttendanceService {
         for (Map<String, Object> m : expectedData) {
             expectedMap.put(m.get("date").toString(), ((Number) m.get("count")).intValue());
         }
-// 3. 以“排班日期”为基准生成最终列表
-        List<String> sortedDates = expectedMap.keySet().stream().sorted().collect(Collectors.toList());
+
+        // 3. 【核心优化】合并两边的日期，确保图表横轴包含本月所有涉及的日期
+        Set<String> allDateSet = new TreeSet<>(); // 使用 TreeSet 自动按日期排序
+        allDateSet.addAll(actualMap.keySet());
+        allDateSet.addAll(expectedMap.keySet());
+
+        List<String> dates = new ArrayList<>();
         List<Integer> finalActual = new ArrayList<>();
         List<Integer> finalExpected = new ArrayList<>();
 
-        for (String date : sortedDates) {
-            finalExpected.add(expectedMap.get(date));
-            // 如果那天有人排班但没人来打卡，实到人数记为 0
+        for (String date : allDateSet) {
+            dates.add(date);
             finalActual.add(actualMap.getOrDefault(date, 0));
+            finalExpected.add(expectedMap.getOrDefault(date, 0));
         }
 
-        vo.setDates(sortedDates);
+        // 4. 将对齐后的三组数据存入 VO
+        vo.setDates(dates);
         vo.setCounts(finalActual);
         vo.setExpectedCounts(finalExpected);
-        
-        List<Map<String, Object>> trendData = attendanceMapper.getMonthlyTrend(month);
-        List<String> dates = new ArrayList<>();
-        List<Integer> counts = new ArrayList<>();
-        for (Map<String, Object> map : trendData) {
-            dates.add(map.get("date").toString());
-            counts.add(((Long) map.get("count")).intValue());
-        }
-        vo.setDates(dates);
-        vo.setCounts(counts);
 
-        // 2. 获取分布数据
+        // 5. 获取分布饼图数据（维持原样）
         List<Map<String, Object>> distData = attendanceMapper.getStatusDistribution(month);
-        // 初始化默认值
         vo.setNormalCount(0); vo.setLateCount(0); vo.setEarlyCount(0); vo.setAbsentCount(0);
-
         for (Map<String, Object> map : distData) {
             int status = (int) map.get("status");
-            int count = ((Long) map.get("count")).intValue();
+            int count = ((Number) map.get("count")).intValue();
             if (status == 0) vo.setNormalCount(count);
             else if (status == 1 || status == 3) vo.setLateCount(vo.getLateCount() + count);
             else if (status == 2 || status == 3) vo.setEarlyCount(vo.getEarlyCount() + count);
             else if (status == 4) vo.setAbsentCount(count);
         }
 
+        // 6. 获取加班排行数据（维持原样）
         List<Map<String, Object>> rankData = overtimeMapper.getOvertimeRank(month);
         List<String> names = new ArrayList<>();
         List<Double> hours = new ArrayList<>();
-
         for (Map<String, Object> map : rankData) {
             names.add(map.get("name").toString());
-            // 注意数据库返回的数值类型转换
             hours.add(Double.valueOf(map.get("total").toString()));
         }
         vo.setEmployeeNames(names);
