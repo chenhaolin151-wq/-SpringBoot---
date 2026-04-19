@@ -7,8 +7,9 @@ import java.util.Map;
 @Data
 public class AttendanceStatisticsVO {
     // 1. 考勤趋势图数据
-    private List<String> dates;      // 日期列表，如 ["03-15", "03-16"...]
+    private List<String> dates;      // 日期列表
     private List<Integer> counts;    // 对应日期的正常出勤人数
+    private List<Integer> expectedCounts; // 新增：应当到岗人数
 
     // 2. 状态分布饼图数据
     private Integer normalCount;     // 正常人数

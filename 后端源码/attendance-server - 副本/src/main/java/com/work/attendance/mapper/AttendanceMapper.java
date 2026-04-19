@@ -14,7 +14,7 @@ public interface AttendanceMapper extends BaseMapper<AttendanceRecord> {
     // AttendanceMapper.java
 
     @Select("SELECT punch_date as date, COUNT(*) as count FROM attendance_record " +
-            "WHERE status = 0 AND DATE_FORMAT(punch_date, '%Y-%m') = #{month} " +
+            "WHERE status != 4 AND DATE_FORMAT(punch_date, '%Y-%m') = #{month} " +
             "GROUP BY punch_date ORDER BY punch_date")
     List<Map<String, Object>> getMonthlyTrend(@Param("month") String month);
 
@@ -22,4 +22,9 @@ public interface AttendanceMapper extends BaseMapper<AttendanceRecord> {
             "WHERE DATE_FORMAT(punch_date, '%Y-%m') = #{month} " +
             "GROUP BY status")
     List<Map<String, Object>> getStatusDistribution(@Param("month") String month);
+
+    @Select("SELECT work_date as date, COUNT(*) as count FROM schedule " +
+            "WHERE DATE_FORMAT(work_date, '%Y-%m') = #{month} " +
+            "GROUP BY work_date ORDER BY work_date")
+    List<Map<String, Object>> getMonthlyExpectedTrend(@Param("month") String month);
 }

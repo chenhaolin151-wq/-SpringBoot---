@@ -14,10 +14,7 @@ import com.work.attendance.entity.AttendanceStatisticsVO;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,6 +30,8 @@ public class AttendanceServiceImpl implements AttendanceService {
     private WorkShiftMapper workShiftMapper;
     @Autowired
     private UserMapper userMapper;
+    @Autowired
+    private OvertimeMapper overtimeMapper;
 
     /**
      * 校验当前 IP 是否为合法的办公 IP
@@ -295,6 +294,33 @@ public class AttendanceServiceImpl implements AttendanceService {
         AttendanceStatisticsVO vo = new AttendanceStatisticsVO();
 
         // 1. 获取趋势数据
+        // 1. 获取实际到岗趋势 (status != 4)
+        List<Map<String, Object>> actualData = attendanceMapper.getMonthlyTrend(month);
+        // 2. 获取应到岗趋势 (排班表)
+        List<Map<String, Object>> expectedData = attendanceMapper.getMonthlyExpectedTrend(month);
+
+// 🌟 核心逻辑：对齐日期和数据
+        // 我们以“实际”和“应到”中出现的所有日期为准
+        Map<String, Integer> actualMap = new TreeMap<>();
+        actualData.forEach(m -> actualMap.put(m.get("date").toString(), ((Long) m.get("count")).intValue()));
+
+        Map<String, Integer> expectedMap = new TreeMap<>();
+        expectedData.forEach(m -> expectedMap.put(m.get("date").toString(), ((Long) m.get("count")).intValue()));
+
+// 获取所有去重并排序后的日期
+        List<String> allDates = new ArrayList<>(expectedMap.keySet());
+        List<Integer> actualCounts = new ArrayList<>();
+        List<Integer> expectedCounts = new ArrayList<>();
+
+        for (String date : allDates) {
+            actualCounts.add(actualMap.getOrDefault(date, 0));
+            expectedCounts.add(expectedMap.getOrDefault(date, 0));
+        }
+
+        vo.setDates(allDates);
+        vo.setCounts(actualCounts);
+        vo.setExpectedCounts(expectedCounts); // 设置应到人数
+
         List<Map<String, Object>> trendData = attendanceMapper.getMonthlyTrend(month);
         List<String> dates = new ArrayList<>();
         List<Integer> counts = new ArrayList<>();
@@ -318,6 +344,18 @@ public class AttendanceServiceImpl implements AttendanceService {
             else if (status == 2 || status == 3) vo.setEarlyCount(vo.getEarlyCount() + count);
             else if (status == 4) vo.setAbsentCount(count);
         }
+
+        List<Map<String, Object>> rankData = overtimeMapper.getOvertimeRank(month);
+        List<String> names = new ArrayList<>();
+        List<Double> hours = new ArrayList<>();
+
+        for (Map<String, Object> map : rankData) {
+            names.add(map.get("name").toString());
+            // 注意数据库返回的数值类型转换
+            hours.add(Double.valueOf(map.get("total").toString()));
+        }
+        vo.setEmployeeNames(names);
+        vo.setOvertimeHours(hours);
 
         return Result.success(vo);
     }

@@ -1,6 +1,6 @@
 <template>
     <div class="admin-container" style="padding: 20px;">
-        <el-tabs type="border-card">
+        <el-tabs type="border-card" v-model="activeName">
 
             <el-tab-pane label="考勤记录查询">
 
@@ -92,6 +92,12 @@
             </el-tab-pane>
 
             <el-tab-pane label="数据统计分析" name="statistics">
+                <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-weight: bold; color: #606266;">查询月份：</span>
+                    <el-date-picker v-model="statsMonth" type="month" placeholder="选择月份" value-format="YYYY-MM"
+                        :clearable="false" @change="fetchStatistics" />
+                    <el-button type="primary" icon="Refresh" @click="fetchStatistics">刷新数据</el-button>
+                </div>
                 <el-row :gutter="20">
                     <el-col :span="16">
                         <el-card shadow="hover" header="📅 本月考勤出勤趋势">
@@ -479,7 +485,7 @@
 
 <script setup>
 
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus' // 必须补上这行！
 
@@ -550,9 +556,10 @@ const formatTime = (timeStr) => {
 }
 
 
+// 定义当前激活的标签页名，默认显示第一个标签页（比如 'records'）
+const activeName = ref('records')
 
-
-
+const statsMonth = ref(new Date().toISOString().substring(0, 7));
 
 // --------------------------------考勤记录查询---------------------------------------------
 
@@ -644,21 +651,83 @@ const tableRowClassName = ({ row }) => {
 
 
 
+
+// 初始化员工加班时长排行图表 (柱状图)
+const initOvertimeRankChart = (data) => {
+    const chartDom = document.getElementById('overtimeRankChart');
+    // 如果找不到容器，直接返回，防止报错
+    if (!chartDom) return;
+
+    const myChart = echarts.init(chartDom);
+    const option = {
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' }
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'value',
+            name: '小时',
+            boundaryGap: [0, 0.01]
+        },
+        yAxis: {
+            type: 'category',
+            // 姓名列表，如 ['张三', '李四', ...]
+            data: data.names || []
+        },
+        series: [
+            {
+                name: '加班总时长',
+                type: 'bar',
+                // 时长列表，如 [10.5, 8.0, ...]
+                data: data.hours || [],
+                itemStyle: {
+                    // 使用漂亮的渐变色或 ElementPlus 主题色
+                    color: '#67C23A'
+                },
+                label: {
+                    show: true,
+                    position: 'right',
+                    formatter: '{c} 小时'
+                }
+            }
+        ]
+    };
+    myChart.setOption(option);
+};
+
 // 初始化趋势折线图
 const initTrendChart = (data) => {
     const chartDom = document.getElementById('trendChart');
     const myChart = echarts.init(chartDom);
-    const option = {
+   const option = {
+        title: { text: '出勤对比趋势' },
         tooltip: { trigger: 'axis' },
-        xAxis: { type: 'category', data: data.dates }, // 模拟日期：['03-01', '03-02'...]
-        yAxis: { type: 'value', name: '出勤人数' },
-        series: [{
-            data: data.counts,
-            type: 'line',
-            smooth: true,
-            areaStyle: {},
-            itemStyle: { color: '#409EFF' }
-        }]
+        legend: { data: ['实际到岗', '应当到岗'] }, // 🌟 增加图例
+        xAxis: { type: 'category', data: data.dates },
+        yAxis: { type: 'value', minInterval: 1 },
+        series: [
+            {
+                name: '实际到岗',
+                data: data.counts,
+                type: 'line',
+                smooth: true,
+                itemStyle: { color: '#409EFF' } // 蓝色
+            },
+            {
+                name: '应当到岗',
+                data: data.expectedCounts, // 🌟 使用后端新增的字段
+                type: 'line',
+                smooth: true,
+                lineStyle: { type: 'dashed' }, // 🌟 设置为虚线，方便区分
+                itemStyle: { color: '#67C23A' } // 绿色
+            }
+        ]
     };
     myChart.setOption(option);
 };
@@ -688,32 +757,31 @@ const initStatusPieChart = (data) => {
 // 获取统计数据并渲染（这里先用模拟数据，等后端写好后再对接）
 const fetchStatistics = async () => {
     try {
-        // 1. 获取当前日历选择的月份，格式化为 YYYY-MM
-        const d = currentDate.value;
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const monthStr = `${year}-${month}`;
+        const monthStr = statsMonth.value;
 
         // 2. 发起请求获取后端真实统计数据
         const res = await request.get(`/api/attendance/statistics?month=${monthStr}`);
-        
-        // 3. 将数据填入图表初始化函数
-        // 确保 DOM 已经渲染完毕后再执行
-        setTimeout(() => {
-            initTrendChart({ 
-                dates: res.dates, 
-                counts: res.counts 
-            });
+
+        await nextTick();
+
+        // 4. 渲染图表
+        if (res) {
+            initTrendChart({ dates: res.dates, counts: res.counts });
             initStatusPieChart({
                 normal: res.normalCount,
                 late: res.lateCount,
                 early: res.earlyCount,
                 absent: res.absentCount
             });
-        }, 300);
+            initOvertimeRankChart({
+                names: res.employeeNames,
+                hours: res.overtimeHours
+            });
+        }
     } catch (err) {
         console.error("获取统计数据失败:", err);
     }
+
 };
 
 // 监听标签页切换，当切换到“statistics”时重新渲染图表
