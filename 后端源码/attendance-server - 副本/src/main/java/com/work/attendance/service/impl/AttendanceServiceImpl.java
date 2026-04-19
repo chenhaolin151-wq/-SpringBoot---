@@ -37,6 +37,7 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     /**
      * 校验当前 IP 是否为合法的办公 IP
+     *
      * @param currentIp 用户打卡时的实时 IP
      * @return 如果校验失败返回 Result 对象，校验成功返回 null
      */
@@ -332,7 +333,10 @@ public class AttendanceServiceImpl implements AttendanceService {
 
         // 5. 获取分布饼图数据（维持原样）
         List<Map<String, Object>> distData = attendanceMapper.getStatusDistribution(month);
-        vo.setNormalCount(0); vo.setLateCount(0); vo.setEarlyCount(0); vo.setAbsentCount(0);
+        vo.setNormalCount(0);
+        vo.setLateCount(0);
+        vo.setEarlyCount(0);
+        vo.setAbsentCount(0);
         for (Map<String, Object> map : distData) {
             int status = (int) map.get("status");
             int count = ((Number) map.get("count")).intValue();
@@ -388,8 +392,12 @@ public class AttendanceServiceImpl implements AttendanceService {
             vo.setRealName(userMap.getOrDefault(s.getUserId(), "未知"));
             vo.setTotalDays(vo.getTotalDays() == null ? 1 : vo.getTotalDays() + 1);
             // 初始化其他数值为 0
-            if(vo.getNormalDays() == null) {
-                vo.setNormalDays(0); vo.setLateCount(0); vo.setEarlyCount(0); vo.setAbsentDays(0); vo.setOvertimeHours(0.0);
+            if (vo.getNormalDays() == null) {
+                vo.setNormalDays(0);
+                vo.setLateCount(0);
+                vo.setEarlyCount(0);
+                vo.setAbsentDays(0);
+                vo.setOvertimeHours(0.0);
             }
         }
 
@@ -417,23 +425,24 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     @Override
-    @Scheduled(cron = "0 0 1 * * ?") // 每天凌晨1点执行
     public void autoCheckAbsence() {
-        // 1. 获取昨天的日期
-        String yesterday = LocalDate.now().minusDays(1).toString();
 
-        // 2. 找出昨天有排班但没打卡的人
-        List<Map<String, Object>> missing = attendanceMapper.findMissingRecords(yesterday);
+        for (int i = 0; i <= 1; i++) {
+            String targetDate = java.time.LocalDate.now().minusDays(i).toString();
 
-        // 3. 批量插入缺勤记录
-        for (Map<String, Object> m : missing) {
-            AttendanceRecord record = new AttendanceRecord();
-            record.setUserId(((Number) m.get("user_id")).longValue());
-            record.setPunchDate(LocalDate.parse(m.get("work_date").toString()));
-            record.setStatus(4); // 4 代表缺勤
-            attendanceMapper.insert(record);
+            // 1. 查找该日期有排班但没打卡的人
+            List<Map<String, Object>> missing = attendanceMapper.findMissingRecords(targetDate);
+
+            // 2. 补齐记录
+            for (Map<String, Object> m : missing) {
+                AttendanceRecord record = new AttendanceRecord();
+                record.setUserId(((Number) m.get("user_id")).longValue());
+                record.setPunchDate(java.time.LocalDate.parse(m.get("work_date").toString()));
+                record.setStatus(4); // 缺勤
+                attendanceMapper.insert(record);
+            }
+            System.out.println("日期 " + targetDate + " 结算完成，生成缺勤：" + missing.size() + "条");
         }
-        System.out.println("自动考勤结算完成，生成缺勤记录数：" + missing.size());
     }
 }
 

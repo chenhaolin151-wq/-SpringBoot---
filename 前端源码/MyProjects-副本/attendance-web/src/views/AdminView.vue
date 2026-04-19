@@ -870,10 +870,10 @@ const fetchStatistics = async () => {
                 expectedCounts: res.expectedCounts
             });
             initStatusPieChart({
-                normal: res.normalCount,
-                late: res.lateCount,
-                early: res.earlyCount,
-                absent: res.absentCount
+                normal: res.normalCount || 0,
+                late: res.lateCount || 0,
+                early: res.earlyCount || 0,
+                absent: res.absentCount || 0  
             });
             initOvertimeRankChart({
                 names: res.employeeNames,
