@@ -855,6 +855,9 @@ const initStatusPieChart = (data) => {
 // 获取统计数据并渲染
 const fetchStatistics = async () => {
     try {
+
+        await request.get('/api/attendance/testAbsence');
+        console.log("后台结算逻辑触发成功");
         const monthStr = statsMonth.value;
 
         // 2. 发起请求获取后端真实统计数据

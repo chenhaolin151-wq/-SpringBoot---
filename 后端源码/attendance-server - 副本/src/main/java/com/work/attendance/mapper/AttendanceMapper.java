@@ -28,8 +28,9 @@ public interface AttendanceMapper extends BaseMapper<AttendanceRecord> {
             "GROUP BY work_date ORDER BY work_date")
     List<Map<String, Object>> getMonthlyExpectedTrend(@Param("month") String month);
 
-    @Select("SELECT s.user_id, s.work_date FROM schedule s " +
-            "LEFT JOIN attendance_record ar ON s.user_id = ar.user_id AND s.work_date = ar.punch_date " +
-            "WHERE s.work_date = #{date} AND ar.id IS NULL")
+    @Select("SELECT s.user_id as userId, s.work_date as workDate FROM schedule s " +
+            "LEFT JOIN attendance_record ar ON s.user_id = ar.user_id " +
+            "AND DATE(s.work_date) = DATE(ar.punch_date) " +
+            "WHERE DATE(s.work_date) = #{date} AND ar.id IS NULL")
     List<Map<String, Object>> findMissingRecords(@Param("date") String date);
 }

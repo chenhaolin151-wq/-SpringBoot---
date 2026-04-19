@@ -425,24 +425,42 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     @Override
+    @Scheduled(cron = "0 0 1 * * ?")
     public void autoCheckAbsence() {
+        // 为了测试，你可以把这里改成 LocalDate.now().toString() 检查当天
+        String targetDate = java.time.LocalDate.now().minusDays(1).toString();
 
-        for (int i = 0; i <= 1; i++) {
-            String targetDate = java.time.LocalDate.now().minusDays(i).toString();
+        System.out.println("==== 开始考勤结算，目标日期：" + targetDate + " ====");
 
-            // 1. 查找该日期有排班但没打卡的人
+        try {
             List<Map<String, Object>> missing = attendanceMapper.findMissingRecords(targetDate);
+            System.out.println("找到潜在缺勤人数：" + (missing == null ? 0 : missing.size()));
 
-            // 2. 补齐记录
-            for (Map<String, Object> m : missing) {
-                AttendanceRecord record = new AttendanceRecord();
-                record.setUserId(((Number) m.get("user_id")).longValue());
-                record.setPunchDate(java.time.LocalDate.parse(m.get("work_date").toString()));
-                record.setStatus(4); // 缺勤
-                attendanceMapper.insert(record);
+            if (missing != null) {
+                for (Map<String, Object> m : missing) {
+                    // 打印一下 Map 的内容，看看 Key 到底是什么
+                    System.out.println("正在处理数据: " + m);
+
+                    // 兼容性取值逻辑：防止大小写问题
+                    Object uId = m.get("userId") != null ? m.get("userId") : m.get("user_id");
+                    Object wDate = m.get("workDate") != null ? m.get("workDate") : m.get("work_date");
+
+                    if (uId != null && wDate != null) {
+                        AttendanceRecord record = new AttendanceRecord();
+                        record.setUserId(Long.valueOf(uId.toString()));
+                        record.setPunchDate(java.time.LocalDate.parse(wDate.toString().substring(0, 10)));
+                        record.setStatus(4); // 缺勤
+
+                        int result = attendanceMapper.insert(record);
+                        System.out.println("用户ID " + uId + " 缺勤记录插入结果: " + (result > 0 ? "成功" : "失败"));
+                    }
+                }
             }
-            System.out.println("日期 " + targetDate + " 结算完成，生成缺勤：" + missing.size() + "条");
+        } catch (Exception e) {
+            System.err.println("结算逻辑发生异常！");
+            e.printStackTrace();
         }
+        System.out.println("==== 考勤结算结束 ====");
     }
 }
 
