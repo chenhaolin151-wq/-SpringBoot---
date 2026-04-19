@@ -26,7 +26,7 @@
                     <el-col :span="8" style="text-align: right;">
                         <el-button type="warning" icon="Download" size="large" :loading="loading"
                             @click="downloadExcel">
-                            导出月度报表
+                            导出报表
                         </el-button>
                     </el-col>
                 </el-row>
@@ -91,6 +91,29 @@
                 </el-table>
             </el-tab-pane>
 
+            <el-tab-pane label="数据统计分析" name="statistics">
+                <el-row :gutter="20">
+                    <el-col :span="16">
+                        <el-card shadow="hover" header="📅 本月考勤出勤趋势">
+                            <div id="trendChart" style="height: 400px;"></div>
+                        </el-card>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-card shadow="hover" header="📊 考勤状态分布">
+                            <div id="statusPieChart" style="height: 400px;"></div>
+                        </el-card>
+                    </el-col>
+                </el-row>
+
+                <el-row :gutter="20" style="margin-top: 20px;">
+                    <el-col :span="24">
+                        <el-card shadow="hover" header="🏆 员工加班时长排行 (Top 5)">
+                            <div id="overtimeRankChart" style="height: 350px;"></div>
+                        </el-card>
+                    </el-col>
+                </el-row>
+            </el-tab-pane>
+
             <el-tab-pane label="请假审批" name="leaveAudit">
                 <el-table :data="allLeaveList" border style="width: 100%">
                     <el-table-column label="申请人" width="120">
@@ -149,6 +172,39 @@
                             <el-tag v-else :type="scope.row.status === 1 ? 'success' : 'danger'">
                                 {{ scope.row.status === 1 ? '已通过' : '已拒绝' }}
                             </el-tag>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-tab-pane>
+
+            <el-tab-pane label="补签审批" name="correctionAudit">
+                <el-table :data="correctionList" border stripe style="width: 100%">
+                    <el-table-column prop="user.realName" label="申请人" width="120" />
+                    <el-table-column prop="applyDate" label="补签日期" width="120" />
+                    <el-table-column label="补签类型" width="100">
+                        <template #default="scope">
+                            <el-tag :type="scope.row.type === 'IN' ? '' : 'info'">
+                                {{ scope.row.type === 'IN' ? '上班卡' : '下班卡' }}
+                            </el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="reason" label="原因" />
+                    <el-table-column label="操作" width="180">
+                        <template #default="scope">
+                            <div v-if="scope.row.status === 0">
+                                <el-button type="success" size="small"
+                                    @click="handleApprove(scope.row.id)">通过</el-button>
+                                <el-button type="danger" size="small" @click="handleReject(scope.row.id)">驳回</el-button>
+                            </div>
+
+                            <span v-else style="color: #999; font-size: 12px;">已完成处理</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="审批状态" width="120">
+                        <template #default="scope">
+                            <el-tag v-if="scope.row.status === 0" type="info">待审批</el-tag>
+                            <el-tag v-if="scope.row.status === 1" type="success" effect="dark">已通过</el-tag>
+                            <el-tag v-if="scope.row.status === 2" type="danger" effect="dark">已驳回</el-tag>
                         </template>
                     </el-table-column>
                 </el-table>
@@ -314,39 +370,6 @@
                 </el-dialog>
             </el-tab-pane>
 
-            <el-tab-pane label="补签审批" name="correctionAudit">
-                <el-table :data="correctionList" border stripe style="width: 100%">
-                    <el-table-column prop="user.realName" label="申请人" width="120" />
-                    <el-table-column prop="applyDate" label="补签日期" width="120" />
-                    <el-table-column label="补签类型" width="100">
-                        <template #default="scope">
-                            <el-tag :type="scope.row.type === 'IN' ? '' : 'info'">
-                                {{ scope.row.type === 'IN' ? '上班卡' : '下班卡' }}
-                            </el-tag>
-                        </template>
-                    </el-table-column>
-                    <el-table-column prop="reason" label="原因" />
-                    <el-table-column label="操作" width="180">
-                        <template #default="scope">
-                            <div v-if="scope.row.status === 0">
-                                <el-button type="success" size="small"
-                                    @click="handleApprove(scope.row.id)">通过</el-button>
-                                <el-button type="danger" size="small" @click="handleReject(scope.row.id)">驳回</el-button>
-                            </div>
-
-                            <span v-else style="color: #999; font-size: 12px;">已完成处理</span>
-                        </template>
-                    </el-table-column>
-                    <el-table-column label="审批状态" width="120">
-                        <template #default="scope">
-                            <el-tag v-if="scope.row.status === 0" type="info">待审批</el-tag>
-                            <el-tag v-if="scope.row.status === 1" type="success" effect="dark">已通过</el-tag>
-                            <el-tag v-if="scope.row.status === 2" type="danger" effect="dark">已驳回</el-tag>
-                        </template>
-                    </el-table-column>
-                </el-table>
-            </el-tab-pane>
-
             <el-tab-pane v-if="currentUser.role === 'ADMIN_HR'" label="员工管理" name="userManagement">
                 <div style="margin-bottom: 20px;">
                     <el-button type="primary" icon="Plus" @click="addVisible = true">
@@ -461,6 +484,8 @@ import request from '@/utils/request'
 import { ElMessage } from 'element-plus' // 必须补上这行！
 
 import { Location } from '@element-plus/icons-vue'
+
+import * as echarts from 'echarts'; // 导入图表库
 
 const allRecords = ref([])
 
@@ -604,6 +629,90 @@ const tableRowClassName = ({ row }) => {
     }
     return ''
 }
+
+
+
+
+
+// --------------------------------数据统计分析---------------------------------------------
+
+
+
+
+
+
+
+
+
+// 初始化趋势折线图
+const initTrendChart = (data) => {
+    const chartDom = document.getElementById('trendChart');
+    const myChart = echarts.init(chartDom);
+    const option = {
+        tooltip: { trigger: 'axis' },
+        xAxis: { type: 'category', data: data.dates }, // 模拟日期：['03-01', '03-02'...]
+        yAxis: { type: 'value', name: '出勤人数' },
+        series: [{
+            data: data.counts,
+            type: 'line',
+            smooth: true,
+            areaStyle: {},
+            itemStyle: { color: '#409EFF' }
+        }]
+    };
+    myChart.setOption(option);
+};
+
+// 初始化状态饼图
+const initStatusPieChart = (data) => {
+    const chartDom = document.getElementById('statusPieChart');
+    const myChart = echarts.init(chartDom);
+    const option = {
+        tooltip: { trigger: 'item' },
+        legend: { bottom: '5%', left: 'center' },
+        series: [{
+            name: '状态分布',
+            type: 'pie',
+            radius: ['40%', '70%'],
+            data: [
+                { value: data.normal, name: '正常' },
+                { value: data.late, name: '迟到' },
+                { value: data.early, name: '早退' },
+                { value: data.absent, name: '缺勤' }
+            ]
+        }]
+    };
+    myChart.setOption(option);
+};
+
+// 获取统计数据并渲染（这里先用模拟数据，等后端写好后再对接）
+const fetchStatistics = async () => {
+    // 实际开发中，这里会调用 request.get('/api/attendance/statistics')
+    // 现在我们先用 Mock 数据看效果
+    const mockTrend = {
+        dates: ['03-15', '03-16', '03-17', '03-18', '03-19'],
+        counts: [10, 12, 8, 15, 14]
+    };
+    const mockStatus = { normal: 80, late: 10, early: 5, absent: 5 };
+
+    // 确保 DOM 渲染后再初始化图表
+    setTimeout(() => {
+        initTrendChart(mockTrend);
+        initStatusPieChart(mockStatus);
+    }, 200);
+};
+
+// 监听标签页切换，当切换到“statistics”时重新渲染图表
+watch(() => activeName.value, (val) => {
+    if (val === 'statistics') {
+        fetchStatistics();
+    }
+});
+
+
+
+
+
 
 
 
@@ -1051,13 +1160,13 @@ const submitUser = async () => {
     try {
         const res = await request.post('/api/user/add', newUser.value)
         // 🌟 判定条件与后端返回的 data 保持一致
-        if (res === 'SUCCESS') { 
+        if (res === 'SUCCESS') {
             ElMessage.success('员工添加成功，默认密码 123456')
             addVisible.value = false
-            
+
             // 🌟 使用 await 确保列表刷新请求已发出并更新了响应式变量
-            await fetchUserList() 
-            
+            await fetchUserList()
+
             // 重置表单
             newUser.value = { realName: '', phone: '', username: '' }
         }

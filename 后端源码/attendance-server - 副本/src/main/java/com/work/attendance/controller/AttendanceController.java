@@ -82,4 +82,12 @@ public class AttendanceController {
     public Result<String> updateConfig(@RequestParam String ip) {
         return attendanceService.updateConfig(ip);
     }
+
+    // AttendanceController.java
+
+    @GetMapping("/statistics")
+    public Result<AttendanceStatisticsVO> getStatistics(@RequestParam String month) {
+        // 假设 month 格式为 "2026-03"
+        return Result.success(attendanceService.getStatistics(month));
+    }
 }

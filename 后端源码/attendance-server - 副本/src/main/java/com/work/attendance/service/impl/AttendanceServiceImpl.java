@@ -9,6 +9,7 @@ import com.work.attendance.mapper.*;
 import com.work.attendance.service.AttendanceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import com.work.attendance.entity.AttendanceStatisticsVO;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -287,5 +288,37 @@ public class AttendanceServiceImpl implements AttendanceService {
 
         int rows = attendanceConfigMapper.update(config, uw);
         return rows > 0 ? Result.success("更新成功") : Result.error("配置更新失败");
+    }
+
+    @Override
+    public AttendanceStatisticsVO getStatistics(String month) {
+        AttendanceStatisticsVO vo = new AttendanceStatisticsVO();
+
+        // 1. 获取趋势数据
+        List<Map<String, Object>> trendData = attendanceMapper.getMonthlyTrend(month);
+        List<String> dates = new ArrayList<>();
+        List<Integer> counts = new ArrayList<>();
+        for (Map<String, Object> map : trendData) {
+            dates.add(map.get("date").toString());
+            counts.add(((Long) map.get("count")).intValue());
+        }
+        vo.setDates(dates);
+        vo.setCounts(counts);
+
+        // 2. 获取分布数据
+        List<Map<String, Object>> distData = attendanceMapper.getStatusDistribution(month);
+        // 初始化默认值
+        vo.setNormalCount(0); vo.setLateCount(0); vo.setEarlyCount(0); vo.setAbsentCount(0);
+
+        for (Map<String, Object> map : distData) {
+            int status = (int) map.get("status");
+            int count = ((Long) map.get("count")).intValue();
+            if (status == 0) vo.setNormalCount(count);
+            else if (status == 1 || status == 3) vo.setLateCount(vo.getLateCount() + count);
+            else if (status == 2 || status == 3) vo.setEarlyCount(vo.getEarlyCount() + count);
+            else if (status == 4) vo.setAbsentCount(count);
+        }
+
+        return Result.success(vo);
     }
 }
