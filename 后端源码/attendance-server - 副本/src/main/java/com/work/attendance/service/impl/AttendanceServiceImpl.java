@@ -291,7 +291,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     @Override
-    public AttendanceStatisticsVO getStatistics(String month) {
+    public Result<AttendanceStatisticsVO> getStatistics(String month) {
         AttendanceStatisticsVO vo = new AttendanceStatisticsVO();
 
         // 1. 获取趋势数据

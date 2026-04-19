@@ -687,19 +687,33 @@ const initStatusPieChart = (data) => {
 
 // 获取统计数据并渲染（这里先用模拟数据，等后端写好后再对接）
 const fetchStatistics = async () => {
-    // 实际开发中，这里会调用 request.get('/api/attendance/statistics')
-    // 现在我们先用 Mock 数据看效果
-    const mockTrend = {
-        dates: ['03-15', '03-16', '03-17', '03-18', '03-19'],
-        counts: [10, 12, 8, 15, 14]
-    };
-    const mockStatus = { normal: 80, late: 10, early: 5, absent: 5 };
+    try {
+        // 1. 获取当前日历选择的月份，格式化为 YYYY-MM
+        const d = currentDate.value;
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const monthStr = `${year}-${month}`;
 
-    // 确保 DOM 渲染后再初始化图表
-    setTimeout(() => {
-        initTrendChart(mockTrend);
-        initStatusPieChart(mockStatus);
-    }, 200);
+        // 2. 发起请求获取后端真实统计数据
+        const res = await request.get(`/api/attendance/statistics?month=${monthStr}`);
+        
+        // 3. 将数据填入图表初始化函数
+        // 确保 DOM 已经渲染完毕后再执行
+        setTimeout(() => {
+            initTrendChart({ 
+                dates: res.dates, 
+                counts: res.counts 
+            });
+            initStatusPieChart({
+                normal: res.normalCount,
+                late: res.lateCount,
+                early: res.earlyCount,
+                absent: res.absentCount
+            });
+        }, 300);
+    } catch (err) {
+        console.error("获取统计数据失败:", err);
+    }
 };
 
 // 监听标签页切换，当切换到“statistics”时重新渲染图表

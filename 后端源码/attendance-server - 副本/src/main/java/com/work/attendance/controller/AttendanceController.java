@@ -87,7 +87,7 @@ public class AttendanceController {
 
     @GetMapping("/statistics")
     public Result<AttendanceStatisticsVO> getStatistics(@RequestParam String month) {
-        // 假设 month 格式为 "2026-03"
-        return Result.success(attendanceService.getStatistics(month));
+        // 调用 Service 层已经写好的 getStatistics 方法
+        return attendanceService.getStatistics(month);
     }
 }
