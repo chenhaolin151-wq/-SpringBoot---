@@ -416,6 +416,7 @@ public class AttendanceServiceImpl implements AttendanceService {
         return Result.success(new ArrayList<>(reportMap.values()));
     }
 
+    @Override
     @Scheduled(cron = "0 0 1 * * ?") // 每天凌晨1点执行
     public void autoCheckAbsence() {
         // 1. 获取昨天的日期

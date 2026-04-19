@@ -96,5 +96,9 @@ public class AttendanceController {
         return attendanceService.getMonthlyReport(month);
     }
 
-
+    @GetMapping("/testAbsence")
+    public Result<String> testAbsence() {
+        attendanceService.autoCheckAbsence(); // 手动调一下
+        return Result.success("手动结算完成");
+    }
 }

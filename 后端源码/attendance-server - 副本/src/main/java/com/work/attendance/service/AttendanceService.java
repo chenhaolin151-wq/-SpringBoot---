@@ -40,4 +40,6 @@ public interface AttendanceService {
     Result<AttendanceStatisticsVO> getStatistics(String month);
 
     Result<List<AttendanceReportVO>> getMonthlyReport(String month);
+
+    void autoCheckAbsence();
 }
