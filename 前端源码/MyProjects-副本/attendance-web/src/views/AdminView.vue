@@ -91,6 +91,39 @@
                 </el-table>
             </el-tab-pane>
 
+            <el-tab-pane label="考勤月度报表" name="report">
+                <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-weight: bold;">报表月份：</span>
+                    <el-date-picker v-model="reportMonth" type="month" value-format="YYYY-MM" :clearable="false"
+                        @change="fetchReport" />
+                    <el-button type="success" icon="Search" @click="fetchReport">生成报表</el-button>
+                </div>
+
+                <el-table :data="reportData" border stripe style="width: 100%">
+                    <el-table-column prop="realName" label="员工姓名" width="120" fixed />
+                    <el-table-column prop="totalDays" label="应出勤(天)" align="center" />
+                    <el-table-column prop="normalDays" label="正常(天)" align="center">
+                        <template #default="scope">
+                            <span style="color: #67C23A">{{ scope.row.normalDays }}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="lateCount" label="迟到(次)" align="center">
+                        <template #default="scope">
+                            <span :style="{ color: scope.row.lateCount > 0 ? '#F56C6C' : '' }">{{ scope.row.lateCount
+                                }}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="earlyCount" label="早退(次)" align="center" />
+                    <el-table-column prop="absentDays" label="缺勤(天)" align="center">
+                        <template #default="scope">
+                            <el-tag v-if="scope.row.absentDays > 0" type="danger">{{ scope.row.absentDays }}</el-tag>
+                            <span v-else>0</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="overtimeHours" label="加班(小时)" align="center" />
+                </el-table>
+            </el-tab-pane>
+
             <el-tab-pane label="数据统计分析" name="statistics">
                 <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
                     <span style="font-weight: bold; color: #606266;">查询月份：</span>
@@ -561,6 +594,9 @@ const activeName = ref('records')
 
 const statsMonth = ref(new Date().toISOString().substring(0, 7));
 
+const reportMonth = ref(new Date().toISOString().substring(0, 7));
+const reportData = ref([]);
+
 // --------------------------------考勤记录查询---------------------------------------------
 
 
@@ -641,6 +677,68 @@ const tableRowClassName = ({ row }) => {
 
 
 
+
+
+
+
+
+// --------------------------------考勤月度报表---------------------------------------------
+
+
+
+
+
+
+
+
+
+
+const fetchReport = async () => {
+    try {
+        const res = await request.get(`/api/attendance/report?month=${reportMonth.value}`);
+        reportData.value = res;
+    } catch (err) {
+        ElMessage.error("获取报表失败");
+    }
+};
+
+// 在 watch(activeName) 中增加触发
+watch(activeName, (val) => {
+    if (val === 'statistics') fetchStatistics();
+    if (val === 'report') fetchReport(); // 🌟 切换到报表页时自动查询
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // --------------------------------数据统计分析---------------------------------------------
 
 
@@ -705,7 +803,7 @@ const initOvertimeRankChart = (data) => {
 const initTrendChart = (data) => {
     const chartDom = document.getElementById('trendChart');
     const myChart = echarts.init(chartDom);
-   const option = {
+    const option = {
         title: { text: '出勤对比趋势' },
         tooltip: { trigger: 'axis' },
         legend: { data: ['实际到岗', '应当到岗'] }, // 🌟 增加图例
@@ -754,7 +852,7 @@ const initStatusPieChart = (data) => {
     myChart.setOption(option);
 };
 
-// 获取统计数据并渲染（这里先用模拟数据，等后端写好后再对接）
+// 获取统计数据并渲染
 const fetchStatistics = async () => {
     try {
         const monthStr = statsMonth.value;
@@ -766,7 +864,11 @@ const fetchStatistics = async () => {
 
         // 4. 渲染图表
         if (res) {
-            initTrendChart({ dates: res.dates, counts: res.counts });
+            initTrendChart({
+                dates: res.dates,
+                counts: res.counts,
+                expectedCounts: res.expectedCounts
+            });
             initStatusPieChart({
                 normal: res.normalCount,
                 late: res.lateCount,

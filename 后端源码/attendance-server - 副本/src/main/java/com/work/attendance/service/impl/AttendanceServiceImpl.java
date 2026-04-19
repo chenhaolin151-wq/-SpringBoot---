@@ -10,6 +10,8 @@ import com.work.attendance.service.AttendanceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.work.attendance.entity.AttendanceStatisticsVO;
+import org.springframework.scheduling.annotation.Scheduled;
+import java.time.LocalDate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -353,4 +355,84 @@ public class AttendanceServiceImpl implements AttendanceService {
 
         return Result.success(vo);
     }
+
+    @Override
+    public Result<List<AttendanceReportVO>> getMonthlyReport(String month) {
+        // 1. 获取该月份所有的排班记录 (底表)
+        List<Schedule> schedules = scheduleMapper.selectList(
+                new QueryWrapper<Schedule>().apply("DATE_FORMAT(work_date, '%Y-%m') = {0}", month)
+        );
+
+        // 2. 获取该月份所有的考勤打卡记录
+        List<AttendanceRecord> records = attendanceMapper.selectList(
+                new QueryWrapper<AttendanceRecord>().apply("DATE_FORMAT(punch_date, '%Y-%m') = {0}", month)
+        );
+
+        // 3. 获取该月份已通过的加班记录
+        List<OvertimeApply> otList = overtimeMapper.selectList(
+                new QueryWrapper<OvertimeApply>().eq("status", 1).apply("DATE_FORMAT(overtime_date, '%Y-%m') = {0}", month)
+        );
+
+        // 4. 获取所有用户 Map
+        Map<Long, String> userMap = userMapper.selectList(null).stream()
+                .collect(Collectors.toMap(User::getId, User::getRealName));
+
+        // 5. 开始聚合计算
+        Map<Long, AttendanceReportVO> reportMap = new HashMap<>();
+
+        // 初始化报表行（基于排班）
+        for (Schedule s : schedules) {
+            reportMap.putIfAbsent(s.getUserId(), new AttendanceReportVO());
+            AttendanceReportVO vo = reportMap.get(s.getUserId());
+            vo.setUserId(s.getUserId());
+            vo.setRealName(userMap.getOrDefault(s.getUserId(), "未知"));
+            vo.setTotalDays(vo.getTotalDays() == null ? 1 : vo.getTotalDays() + 1);
+            // 初始化其他数值为 0
+            if(vo.getNormalDays() == null) {
+                vo.setNormalDays(0); vo.setLateCount(0); vo.setEarlyCount(0); vo.setAbsentDays(0); vo.setOvertimeHours(0.0);
+            }
+        }
+
+        // 统计考勤状态
+        for (AttendanceRecord r : records) {
+            AttendanceReportVO vo = reportMap.get(r.getUserId());
+            if (vo == null) continue;
+
+            if (r.getStatus() == 0) vo.setNormalDays(vo.getNormalDays() + 1);
+            else if (r.getStatus() == 1) vo.setLateCount(vo.getLateCount() + 1);
+            else if (r.getStatus() == 2) vo.setEarlyCount(vo.getEarlyCount() + 1);
+            else if (r.getStatus() == 3) {
+                vo.setLateCount(vo.getLateCount() + 1);
+                vo.setEarlyCount(vo.getEarlyCount() + 1);
+            } else if (r.getStatus() == 4) vo.setAbsentDays(vo.getAbsentDays() + 1);
+        }
+
+        // 统计加班时长
+        for (OvertimeApply ot : otList) {
+            AttendanceReportVO vo = reportMap.get(ot.getUserId());
+            if (vo != null) vo.setOvertimeHours(vo.getOvertimeHours() + ot.getDuration());
+        }
+
+        return Result.success(new ArrayList<>(reportMap.values()));
+    }
+
+    @Scheduled(cron = "0 0 1 * * ?") // 每天凌晨1点执行
+    public void autoCheckAbsence() {
+        // 1. 获取昨天的日期
+        String yesterday = LocalDate.now().minusDays(1).toString();
+
+        // 2. 找出昨天有排班但没打卡的人
+        List<Map<String, Object>> missing = attendanceMapper.findMissingRecords(yesterday);
+
+        // 3. 批量插入缺勤记录
+        for (Map<String, Object> m : missing) {
+            AttendanceRecord record = new AttendanceRecord();
+            record.setUserId(((Number) m.get("user_id")).longValue());
+            record.setPunchDate(LocalDate.parse(m.get("work_date").toString()));
+            record.setStatus(4); // 4 代表缺勤
+            attendanceMapper.insert(record);
+        }
+        System.out.println("自动考勤结算完成，生成缺勤记录数：" + missing.size());
+    }
 }
+

@@ -2,6 +2,7 @@ package com.work.attendance.service;
 
 import com.work.attendance.common.Result;
 import com.work.attendance.entity.AttendanceRecord;
+import com.work.attendance.entity.AttendanceReportVO;
 import com.work.attendance.entity.AttendanceStatisticsVO;
 
 import java.util.List;
@@ -37,4 +38,6 @@ public interface AttendanceService {
 
     // 用于获取指定月份的统计数据
     Result<AttendanceStatisticsVO> getStatistics(String month);
+
+    Result<List<AttendanceReportVO>> getMonthlyReport(String month);
 }

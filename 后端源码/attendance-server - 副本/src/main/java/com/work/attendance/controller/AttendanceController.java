@@ -90,4 +90,11 @@ public class AttendanceController {
         // 调用 Service 层已经写好的 getStatistics 方法
         return attendanceService.getStatistics(month);
     }
+
+    @GetMapping("/report")
+    public Result<List<AttendanceReportVO>> getMonthlyReport(@RequestParam String month) {
+        return attendanceService.getMonthlyReport(month);
+    }
+
+
 }
