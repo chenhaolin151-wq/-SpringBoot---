@@ -301,26 +301,30 @@ public class AttendanceServiceImpl implements AttendanceService {
 
 // 🌟 核心逻辑：对齐日期和数据
         // 我们以“实际”和“应到”中出现的所有日期为准
-        Map<String, Integer> actualMap = new TreeMap<>();
-        actualData.forEach(m -> actualMap.put(m.get("date").toString(), ((Long) m.get("count")).intValue()));
-
-        Map<String, Integer> expectedMap = new TreeMap<>();
-        expectedData.forEach(m -> expectedMap.put(m.get("date").toString(), ((Long) m.get("count")).intValue()));
-
-// 获取所有去重并排序后的日期
-        List<String> allDates = new ArrayList<>(expectedMap.keySet());
-        List<Integer> actualCounts = new ArrayList<>();
-        List<Integer> expectedCounts = new ArrayList<>();
-
-        for (String date : allDates) {
-            actualCounts.add(actualMap.getOrDefault(date, 0));
-            expectedCounts.add(expectedMap.getOrDefault(date, 0));
+        Map<String, Integer> actualMap = new HashMap<>();
+        for (Map<String, Object> m : actualData) {
+            actualMap.put(m.get("date").toString(), ((Number) m.get("count")).intValue());
         }
 
-        vo.setDates(allDates);
-        vo.setCounts(actualCounts);
-        vo.setExpectedCounts(expectedCounts); // 设置应到人数
+        Map<String, Integer> expectedMap = new HashMap<>();
+        for (Map<String, Object> m : expectedData) {
+            expectedMap.put(m.get("date").toString(), ((Number) m.get("count")).intValue());
+        }
+// 3. 以“排班日期”为基准生成最终列表
+        List<String> sortedDates = expectedMap.keySet().stream().sorted().collect(Collectors.toList());
+        List<Integer> finalActual = new ArrayList<>();
+        List<Integer> finalExpected = new ArrayList<>();
 
+        for (String date : sortedDates) {
+            finalExpected.add(expectedMap.get(date));
+            // 如果那天有人排班但没人来打卡，实到人数记为 0
+            finalActual.add(actualMap.getOrDefault(date, 0));
+        }
+
+        vo.setDates(sortedDates);
+        vo.setCounts(finalActual);
+        vo.setExpectedCounts(finalExpected);
+        
         List<Map<String, Object>> trendData = attendanceMapper.getMonthlyTrend(month);
         List<String> dates = new ArrayList<>();
         List<Integer> counts = new ArrayList<>();
