@@ -14,7 +14,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import java.time.LocalDate;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -426,46 +425,35 @@ public class AttendanceServiceImpl implements AttendanceService {
         return Result.success(new ArrayList<>(reportMap.values()));
     }
 
-    // AttendanceServiceImpl.java
 
     @Override
     @Transactional // 🌟 加上事务，保证批量插入的原子性
     public void autoCheckAbsence(String month) {
         System.out.println("==== 开始执行 [" + month + "] 缺勤数据补全 ====");
-
         try {
-            // 1. 调用 Mapper 找出该月份所有有排班但没打卡的人
-            // 注意：SQL 已经在上一步改为 findMonthlyMissingRecords
             List<Map<String, Object>> missingList = attendanceMapper.findMonthlyMissingRecords(month);
-
             System.out.println("检测到该月累计缺勤记录数：" + (missingList == null ? 0 : missingList.size()));
 
             if (missingList != null && !missingList.isEmpty()) {
                 int count = 0;
                 for (Map<String, Object> map : missingList) {
-                    // 处理数据库字段名大小写兼容性
-                    Object uId = map.getOrDefault("userId", map.get("user_id"));
-                    Object wDate = map.getOrDefault("workDate", map.get("work_date"));
+                    Long uId = Long.valueOf(map.getOrDefault("userId", map.get("user_id")).toString());
+                    String wDate = map.getOrDefault("workDate", map.get("work_date")).toString();
 
-                    if (uId != null && wDate != null) {
-                        AttendanceRecord record = new AttendanceRecord();
-                        record.setUserId(Long.valueOf(uId.toString()));
-                        // 转换日期：取前10位 YYYY-MM-DD
-                        record.setPunchDate(LocalDate.parse(wDate.toString().substring(0, 10)));
-                        record.setStatus(4); // 4代表缺勤
-
-                        attendanceMapper.insert(record);
-                        count++;
-                    }
+                    AttendanceRecord record = new AttendanceRecord();
+                    record.setUserId(uId);
+                    record.setPunchDate(LocalDate.parse(wDate.substring(0, 10)));
+                    record.setStatus(4); // 缺勤
+                    attendanceMapper.insert(record);
+                    count++;
                 }
-                System.out.println("成功补录 " + count + " 条记录到数据库。");
+                System.out.println("成功补录 " + count + " 条记录。");
             }
         } catch (Exception e) {
-            System.err.println("结算失败：" + e.getMessage());
             e.printStackTrace();
         }
-        System.out.println("==== 结算执行完毕 ====");
     }
+
     // 供定时任务调用的无参方法（保持每天凌晨自动跑当前月）
     @Scheduled(cron = "0 0 2 * * ?")
     public void autoCheckCurrentMonth() {
