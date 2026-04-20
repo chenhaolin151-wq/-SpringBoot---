@@ -7,8 +7,11 @@ import com.work.attendance.mapper.*;
 import com.work.attendance.service.AttendanceService;
 import com.work.attendance.utils.IpUtils;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.io.IOException;
 import java.time.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -100,5 +103,17 @@ public class AttendanceController {
     public Result<String> testAbsence(@RequestParam String month) { // 🌟 接收前端传来的月份
         attendanceService.autoCheckAbsence(month); // 传给 Service
         return Result.success("结算成功");
+    }
+
+    @GetMapping("/exportReport")
+    public void exportReport(@RequestParam String month, HttpServletResponse response) throws IOException {
+        // 设置响应头，告诉浏览器这是一个 Excel 文件下载
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setCharacterEncoding("utf-8");
+        String fileName = "Attendance_Report_" + month;
+        response.setHeader("Content-disposition", "attachment;filename=" + fileName + ".xlsx");
+
+        // 调用 Service 层导出数据
+        attendanceService.exportMonthlyReport(month, response.getOutputStream());
     }
 }

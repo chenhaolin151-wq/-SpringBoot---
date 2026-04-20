@@ -5,6 +5,7 @@ import com.work.attendance.entity.AttendanceRecord;
 import com.work.attendance.entity.AttendanceReportVO;
 import com.work.attendance.entity.AttendanceStatisticsVO;
 
+import java.io.OutputStream;
 import java.util.List;
 
 public interface AttendanceService {
@@ -42,4 +43,7 @@ public interface AttendanceService {
     Result<List<AttendanceReportVO>> getMonthlyReport(String month);
 
     void autoCheckAbsence(String month);
+
+    // AttendanceService.java
+    void exportMonthlyReport(String month, OutputStream outputStream);
 }
