@@ -106,14 +106,15 @@ public class AttendanceController {
     }
 
     @GetMapping("/exportReport")
-    public void exportReport(@RequestParam String month, HttpServletResponse response) throws IOException {
-        // 设置响应头，告诉浏览器这是一个 Excel 文件下载
+    public void exportReport(@RequestParam String month, jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+        // 1. 设置下载请求头
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setCharacterEncoding("utf-8");
-        String fileName = "Attendance_Report_" + month;
+        // 防止中文文件名乱码
+        String fileName = java.net.URLEncoder.encode("考勤月度报表_" + month, "UTF-8");
         response.setHeader("Content-disposition", "attachment;filename=" + fileName + ".xlsx");
 
-        // 调用 Service 层导出数据
+        // 2. 调用 Service 层执行导出
         attendanceService.exportMonthlyReport(month, response.getOutputStream());
     }
 }

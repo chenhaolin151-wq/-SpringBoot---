@@ -97,6 +97,7 @@
                     <el-date-picker v-model="reportMonth" type="month" value-format="YYYY-MM" :clearable="false"
                         @change="fetchReport" />
                     <el-button type="success" icon="Search" @click="fetchReport">生成报表</el-button>
+                    <el-button type="warning" icon="Download" @click="downloadReport">导出当前月报表</el-button>
                 </div>
 
                 <el-table :data="reportData" border stripe style="width: 100%">
@@ -110,7 +111,7 @@
                     <el-table-column prop="lateCount" label="迟到(次)" align="center">
                         <template #default="scope">
                             <span :style="{ color: scope.row.lateCount > 0 ? '#F56C6C' : '' }">{{ scope.row.lateCount
-                                }}</span>
+                            }}</span>
                         </template>
                     </el-table-column>
                     <el-table-column prop="earlyCount" label="早退(次)" align="center" />
@@ -691,8 +692,17 @@ const tableRowClassName = ({ row }) => {
 
 
 
-
-
+const downloadReport = () => {
+    if (!reportMonth.value) {
+        ElMessage.warning('请先选择月份');
+        return;
+    }
+    // 注意：这里要指向我们刚才在 Controller 里新写的 /api/attendance/exportReport 接口
+    const BASE_URL = 'http://localhost:8081'; 
+    window.location.href = `${BASE_URL}/api/attendance/exportReport?month=${reportMonth.value}`;
+    
+    ElMessage.success(`${reportMonth.value} 报表下载中...`);
+};
 const fetchReport = async () => {
     try {
         const res = await request.get(`/api/attendance/report?month=${reportMonth.value}`);

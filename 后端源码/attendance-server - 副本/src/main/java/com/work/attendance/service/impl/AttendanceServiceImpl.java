@@ -464,15 +464,14 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     @Override
-    public void exportMonthlyReport(String month, OutputStream outputStream) {
-        // 1. 复用你已有的逻辑获取报表数据
-        Result<List<AttendanceReportVO>> reportResult = this.getMonthlyReport(month);
-        List<AttendanceReportVO> data = reportResult.getData();
+    public void exportMonthlyReport(String month, java.io.OutputStream outputStream) {
+        // 1. 获取报表数据（直接复用你已经写好的查询方法）
+        com.work.attendance.common.Result<List<com.work.attendance.entity.AttendanceReportVO>> res = this.getMonthlyReport(month);
+        List<com.work.attendance.entity.AttendanceReportVO> data = res.getData();
 
-        // 2. 使用 EasyExcel 将数据写入流
-        // 注意：需要在 AttendanceReportVO 类上添加 @ExcelProperty 注解来映射表头
-        com.alibaba.excel.EasyExcel.write(outputStream, AttendanceReportVO.class)
-                .sheet("月度报表-" + month)
+        // 2. 使用 EasyExcel 写入流
+        com.alibaba.excel.EasyExcel.write(outputStream, com.work.attendance.entity.AttendanceReportVO.class)
+                .sheet("考勤月度报表")
                 .doWrite(data);
     }
 }
