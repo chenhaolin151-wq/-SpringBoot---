@@ -110,7 +110,7 @@
                     <el-table-column prop="lateCount" label="迟到(次)" align="center">
                         <template #default="scope">
                             <span :style="{ color: scope.row.lateCount > 0 ? '#F56C6C' : '' }">{{ scope.row.lateCount
-                            }}</span>
+                                }}</span>
                         </template>
                     </el-table-column>
                     <el-table-column prop="earlyCount" label="早退(次)" align="center" />
@@ -859,9 +859,8 @@ const fetchStatistics = async () => {
         const monthStr = statsMonth.value;
 
 
-        await request.get('/api/attendance/testAbsence?month=${monthStr}');
+        await request.get(`/api/attendance/testAbsence?month=${monthStr}`);
 
-        // 2. 发起请求获取后端真实统计数据
         const res = await request.get(`/api/attendance/statistics?month=${monthStr}`);
 
         await nextTick();
@@ -890,12 +889,6 @@ const fetchStatistics = async () => {
 
 };
 
-// 监听标签页切换，当切换到“statistics”时重新渲染图表
-watch(() => activeName.value, (val) => {
-    if (val === 'statistics') {
-        fetchStatistics();
-    }
-});
 
 
 

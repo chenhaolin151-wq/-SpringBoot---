@@ -339,7 +339,7 @@ public class AttendanceServiceImpl implements AttendanceService {
         vo.setEarlyCount(0);
         vo.setAbsentCount(0);
         for (Map<String, Object> map : distData) {
-            int status = (int) map.get("status");
+            int status = ((Number) map.get("status")).intValue();
             int count = ((Number) map.get("count")).intValue();
             if (status == 0) vo.setNormalCount(count);
             else if (status == 1 || status == 3) vo.setLateCount(vo.getLateCount() + count);
