@@ -97,8 +97,8 @@ public class AttendanceController {
     }
 
     @GetMapping("/testAbsence")
-    public Result<String> testAbsence() {
-        attendanceService.autoCheckAbsence(); // 手动调一下
-        return Result.success("手动结算完成");
+    public Result<String> testAbsence(@RequestParam String month) { // 🌟 接收前端传来的月份
+        attendanceService.autoCheckAbsence(month); // 传给 Service
+        return Result.success("结算成功");
     }
 }

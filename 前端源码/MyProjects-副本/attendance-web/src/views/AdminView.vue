@@ -110,7 +110,7 @@
                     <el-table-column prop="lateCount" label="迟到(次)" align="center">
                         <template #default="scope">
                             <span :style="{ color: scope.row.lateCount > 0 ? '#F56C6C' : '' }">{{ scope.row.lateCount
-                                }}</span>
+                            }}</span>
                         </template>
                     </el-table-column>
                     <el-table-column prop="earlyCount" label="早退(次)" align="center" />
@@ -856,9 +856,10 @@ const initStatusPieChart = (data) => {
 const fetchStatistics = async () => {
     try {
 
-        await request.get('/api/attendance/testAbsence');
-        console.log("后台结算逻辑触发成功");
         const monthStr = statsMonth.value;
+
+
+        await request.get('/api/attendance/testAbsence?month=${monthStr}');
 
         // 2. 发起请求获取后端真实统计数据
         const res = await request.get(`/api/attendance/statistics?month=${monthStr}`);
@@ -876,7 +877,7 @@ const fetchStatistics = async () => {
                 normal: res.normalCount || 0,
                 late: res.lateCount || 0,
                 early: res.earlyCount || 0,
-                absent: res.absentCount || 0  
+                absent: res.absentCount || 0
             });
             initOvertimeRankChart({
                 names: res.employeeNames,

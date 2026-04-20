@@ -12,10 +12,12 @@ import org.springframework.stereotype.Service;
 import com.work.attendance.entity.AttendanceStatisticsVO;
 import org.springframework.scheduling.annotation.Scheduled;
 import java.time.LocalDate;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -424,43 +426,51 @@ public class AttendanceServiceImpl implements AttendanceService {
         return Result.success(new ArrayList<>(reportMap.values()));
     }
 
-    @Override
-    @Scheduled(cron = "0 0 1 * * ?")
-    public void autoCheckAbsence() {
-        // 为了测试，你可以把这里改成 LocalDate.now().toString() 检查当天
-        String targetDate = java.time.LocalDate.now().minusDays(1).toString();
+    // AttendanceServiceImpl.java
 
-        System.out.println("==== 开始考勤结算，目标日期：" + targetDate + " ====");
+    @Override
+    @Transactional // 🌟 加上事务，保证批量插入的原子性
+    public void autoCheckAbsence(String month) {
+        System.out.println("==== 开始执行 [" + month + "] 缺勤数据补全 ====");
 
         try {
-            List<Map<String, Object>> missing = attendanceMapper.findMissingRecords(targetDate);
-            System.out.println("找到潜在缺勤人数：" + (missing == null ? 0 : missing.size()));
+            // 1. 调用 Mapper 找出该月份所有有排班但没打卡的人
+            // 注意：SQL 已经在上一步改为 findMonthlyMissingRecords
+            List<Map<String, Object>> missingList = attendanceMapper.findMonthlyMissingRecords(month);
 
-            if (missing != null) {
-                for (Map<String, Object> m : missing) {
-                    // 打印一下 Map 的内容，看看 Key 到底是什么
-                    System.out.println("正在处理数据: " + m);
+            System.out.println("检测到该月累计缺勤记录数：" + (missingList == null ? 0 : missingList.size()));
 
-                    // 兼容性取值逻辑：防止大小写问题
-                    Object uId = m.get("userId") != null ? m.get("userId") : m.get("user_id");
-                    Object wDate = m.get("workDate") != null ? m.get("workDate") : m.get("work_date");
+            if (missingList != null && !missingList.isEmpty()) {
+                int count = 0;
+                for (Map<String, Object> map : missingList) {
+                    // 处理数据库字段名大小写兼容性
+                    Object uId = map.getOrDefault("userId", map.get("user_id"));
+                    Object wDate = map.getOrDefault("workDate", map.get("work_date"));
 
                     if (uId != null && wDate != null) {
                         AttendanceRecord record = new AttendanceRecord();
                         record.setUserId(Long.valueOf(uId.toString()));
-                        record.setPunchDate(java.time.LocalDate.parse(wDate.toString().substring(0, 10)));
-                        record.setStatus(4); // 缺勤
+                        // 转换日期：取前10位 YYYY-MM-DD
+                        record.setPunchDate(LocalDate.parse(wDate.toString().substring(0, 10)));
+                        record.setStatus(4); // 4代表缺勤
 
-                        int result = attendanceMapper.insert(record);
-                        System.out.println("用户ID " + uId + " 缺勤记录插入结果: " + (result > 0 ? "成功" : "失败"));
+                        attendanceMapper.insert(record);
+                        count++;
                     }
                 }
+                System.out.println("成功补录 " + count + " 条记录到数据库。");
             }
         } catch (Exception e) {
-            System.err.println("结算逻辑发生异常！");
+            System.err.println("结算失败：" + e.getMessage());
             e.printStackTrace();
         }
-        System.out.println("==== 考勤结算结束 ====");
+        System.out.println("==== 结算执行完毕 ====");
+    }
+    // 供定时任务调用的无参方法（保持每天凌晨自动跑当前月）
+    @Scheduled(cron = "0 0 2 * * ?")
+    public void autoCheckCurrentMonth() {
+        String currentMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+        this.autoCheckAbsence(currentMonth);
     }
 }
 

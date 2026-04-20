@@ -41,5 +41,5 @@ public interface AttendanceService {
 
     Result<List<AttendanceReportVO>> getMonthlyReport(String month);
 
-    void autoCheckAbsence();
+    void autoCheckAbsence(String month);
 }
