@@ -28,8 +28,10 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(jwtInterceptor)
-                .addPathPatterns("/api/**") // 拦截所有接口
-                .excludePathPatterns("/api/user/login"); // 放行登录接口
+                .addPathPatterns("/api/**")
+                .excludePathPatterns("/api/user/login", "/api/user/register")
+                .excludePathPatterns("/api/attendance/exportReport") // 🌟 关键：排除掉报表导出接口
+                .excludePathPatterns("/api/file/export");           // 确保之前的导出也能用
     }
 
     @Override
